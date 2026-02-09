@@ -105,6 +105,7 @@ export function DashboardShell({
     { href: `${base}/admin/schedule-requests`, label: "Schedule requests", icon: "calendar" },
     { href: `${base}/admin/users`, label: "Users", icon: "user" },
     { href: `${base}/admin/analytics`, label: "Analytics", icon: "chart" },
+    { href: `${base}/admin/submissions/grade`, label: "Confirm grades", icon: "quiz" },
   ];
   const mentorLinks: NavEntry[] = [
     { href: base, label: "Home", icon: "home" },
@@ -112,7 +113,7 @@ export function DashboardShell({
       { href: `${base}/mentor/programs`, label: "Course List" },
       { href: `${base}/courses/new`, label: "Create Course" },
     ]},
-    { href: `${base}/mentor/submissions`, label: "Assignment evaluation", icon: "doc" },
+    { href: `${base}/mentor/submissions/grade`, label: "Grading", icon: "quiz" },
     { href: `${base}/mentor/planning`, label: "Planning", icon: "calendar" },
     { href: `${base}/mentor/technical-support`, label: "Technical support", icon: "user" },
     { href: `${base}/mentor/materials`, label: "Materials", icon: "book" },
@@ -125,7 +126,7 @@ export function DashboardShell({
     ]},
     { href: `${base}/trainee/planning`, label: "My Planning", icon: "calendar" },
     { href: `${base}/trainee/projects`, label: "Projects", icon: "folder" },
-    { href: `${base}/trainee/evaluations`, label: "Assignment evaluation", icon: "quiz" },
+    { href: `${base}/trainee/submissions`, label: "Submissions", icon: "quiz" },
     { href: `${base}/trainee/concepts`, label: "Materials", icon: "doc" },
   ];
 

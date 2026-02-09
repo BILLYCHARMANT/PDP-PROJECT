@@ -11,7 +11,9 @@ const createSchema = z.object({
   comment: z.string().optional(),
   score: z.number().min(0).optional(),
   passed: z.boolean().optional(),
+  grade: z.string().max(10).optional(),
   status: z.enum(["APPROVED", "REJECTED", "RESUBMIT_REQUESTED"]),
+  adminComment: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -44,6 +46,31 @@ export async function POST(req: Request) {
         );
       }
     }
+    if (session.user.role === "ADMIN" && submission.status === "PENDING_ADMIN_APPROVAL" && parsed.data.adminComment !== undefined) {
+      const latestFeedback = await prisma.feedback.findFirst({
+        where: { submissionId: parsed.data.submissionId },
+        orderBy: { createdAt: "desc" },
+      });
+      if (latestFeedback) {
+        await prisma.feedback.update({
+          where: { id: latestFeedback.id },
+          data: {
+            adminComment: parsed.data.adminComment || null,
+            adminApprovedAt: new Date(),
+          },
+        });
+      }
+      const newStatus = parsed.data.status === "APPROVED" ? "APPROVED" : parsed.data.status;
+      await prisma.submission.update({
+        where: { id: parsed.data.submissionId },
+        data: { status: newStatus, reviewedAt: new Date() },
+      });
+      if (newStatus === "APPROVED") {
+        await revalidateProgress(submission.traineeId, submission.assignment.moduleId);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     const feedback = await prisma.feedback.create({
       data: {
         submissionId: parsed.data.submissionId,
@@ -51,17 +78,21 @@ export async function POST(req: Request) {
         comment: parsed.data.comment,
         score: parsed.data.score,
         passed: parsed.data.passed,
+        grade: parsed.data.grade ?? null,
       },
     });
+    const submissionStatus =
+      parsed.data.status === "APPROVED" && session.user.role === "MENTOR"
+        ? "PENDING_ADMIN_APPROVAL"
+        : parsed.data.status;
     await prisma.submission.update({
       where: { id: parsed.data.submissionId },
       data: {
-        status: parsed.data.status,
+        status: submissionStatus,
         reviewedAt: new Date(),
       },
     });
-    // Recompute module progress when approved
-    if (parsed.data.status === "APPROVED") {
+    if (submissionStatus === "APPROVED") {
       await revalidateProgress(submission.traineeId, submission.assignment.moduleId);
     }
     return NextResponse.json(feedback);

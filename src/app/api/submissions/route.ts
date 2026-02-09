@@ -22,18 +22,39 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const assignmentId = searchParams.get("assignmentId");
     const traineeId = searchParams.get("traineeId");
+    const statusFilter = searchParams.get("status");
     const where: Record<string, unknown> = {};
     if (assignmentId) where.assignmentId = assignmentId;
+    if (statusFilter) where.status = statusFilter;
     if (session.user.role === "TRAINEE") {
       where.traineeId = session.user.id;
     } else if (traineeId) {
       where.traineeId = traineeId;
     }
+    if (session.user.role === "MENTOR") {
+      where.OR = [
+        { assignedReviewerId: null },
+        { assignedReviewerId: session.user.id },
+      ];
+    }
     const submissions = await prisma.submission.findMany({
       where,
       orderBy: { submittedAt: "desc" },
       include: {
-        assignment: { select: { id: true, title: true, moduleId: true } },
+        assignment: {
+          select: {
+            id: true,
+            title: true,
+            moduleId: true,
+            module: {
+              select: {
+                id: true,
+                title: true,
+                programId: true,
+              },
+            },
+          },
+        },
         trainee: { select: { id: true, name: true, email: true } },
         feedback: true,
       },

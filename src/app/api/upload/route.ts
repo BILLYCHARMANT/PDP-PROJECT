@@ -23,8 +23,18 @@ export async function POST(req: Request) {
     }
     const type = formData.get("type") as string | null;
     const subdir = type === "avatar" ? "avatars" : type === "course" ? "courses" : "submissions";
-    const ext = path.extname(file.name) || ".png";
-    const safeName = `${uuidv4()}${ext}`;
+    const ext = (path.extname(file.name) || "").toLowerCase();
+    if (subdir === "submissions") {
+      const allowed = [".pdf", ".doc", ".docx"];
+      if (!allowed.includes(ext)) {
+        return NextResponse.json(
+          { error: "Only PDF and Word documents (.pdf, .doc, .docx) are allowed" },
+          { status: 400 }
+        );
+      }
+    }
+    const safeExt = ext || (subdir === "avatars" ? ".png" : ".bin");
+    const safeName = `${uuidv4()}${safeExt}`;
     const uploadDir = process.env.UPLOAD_DIR || "./uploads";
     const dir = path.join(process.cwd(), uploadDir, subdir);
     if (!fs.existsSync(dir)) {

@@ -153,6 +153,7 @@ model Assignment {
 // ============== SUBMISSIONS & FEEDBACK ==============
 enum SubmissionStatus {
   PENDING    // submitted, awaiting review
+  PENDING_ADMIN_APPROVAL  // mentor evaluated; awaiting admin confirmation
   APPROVED
   REJECTED
   RESUBMIT_REQUESTED
@@ -180,16 +181,19 @@ model Submission {
 }
 
 model Feedback {
-  id           String   @id @default(cuid())
-  submissionId String
-  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  mentorId     String
-  mentor       User     @relation(fields: [mentorId], references: [id], onDelete: Cascade)
-  comment      String?
-  score        Float?   // optional numeric score
-  passed       Boolean? // pass/fail
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String    @id @default(cuid())
+  submissionId      String
+  submission        Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  mentorId          String
+  mentor            User     @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  comment           String?   // mentor note
+  score             Float?    // optional numeric score
+  passed            Boolean?  // pass/fail
+  grade             String?   // letter grade A+, A, B+, B, C, D (for grading UI)
+  adminComment      String?   // admin comment on confirmation
+  adminApprovedAt   DateTime? // when admin confirmed the evaluation
+  createdAt         DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([submissionId])
 }
