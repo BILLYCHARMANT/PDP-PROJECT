@@ -1,0 +1,312 @@
+// UNIPOD PDP Dashboard - Database Schema
+// PostgreSQL with Prisma ORM
+// Entities: User, Program, Cohort, Module, Lesson, Assignment, Submission, Feedback, Progress, Certificate
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // URL moved to prisma.config.ts in Prisma 7
+}
+
+// ============== USER & AUTH ==============
+enum Role {
+  ADMIN
+  MENTOR
+  TRAINEE
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  imageUrl  String?  // Profile/avatar image; user uploads in Profile section
+  phone     String?  // Rwandan contact: +250 78X XXX XXX or +250 79X XXX XXX
+  role      Role
+  active    Boolean  @default(true) // Admin can deactivate; deactivated users lose access
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cohortsMentoring Cohort[]    @relation("MentorCohorts")
+  enrollments      Enrollment[]
+  submissions      Submission[]
+  feedbackGiven    Feedback[]
+  certificates     Certificate[]
+  assignedReviews  Submission[] @relation("AssignedReviewer")
+  auditLogs        AuditLog[]
+  certificatesApproved Certificate[] @relation("CertificateApprover")
+  traineeScheduledEvents TraineeScheduledEvent[]
+  mentorScheduledEvents TraineeScheduledEvent[] @relation("ScheduledEventsAsMentor")
+}
+
+// ============== PROGRAM & COHORT ==============
+enum ProgramStatus {
+  INACTIVE // default until at least one cohort exists
+  ACTIVE
+}
+
+model Program {
+  id            String        @id @default(cuid())
+  name          String
+  description   String?
+  imageUrl      String?       // card / hero image for program listing
+  duration      String?      // e.g. "12 weeks"
+  skillOutcomes String?      // JSON or text description of outcomes
+  faq           Json?        // [{ question, answer }] for Create Course step 3
+  status        ProgramStatus @default(INACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  cohorts      Cohort[]
+  modules      Module[]
+  certificates Certificate[]
+}
+
+model Cohort {
+  id        String   @id @default(cuid())
+  name      String
+  programId String?  // Nullable: cohorts can exist without a program, then assigned when course is created
+  program   Program? @relation(fields: [programId], references: [id], onDelete: Cascade)
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mentorId String?
+  mentor   User?    @relation("MentorCohorts", fields: [mentorId], references: [id], onDelete: SetNull)
+  enrollments Enrollment[]
+}
+
+// Trainee enrollment in a cohort
+model Enrollment {
+  id               String    @id @default(cuid())
+  traineeId        String
+  trainee          User      @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  cohortId         String
+  cohort           Cohort    @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  enrolledAt       DateTime  @default(now())
+  atRisk           Boolean   @default(false)   // Admin/mentor can flag
+  extendedEndDate  DateTime? // Admin can extend deadline (no score change)
+  lastReminderAt   DateTime? // Mentor reminder to trainee (late / module completion issues)
+
+  @@unique([traineeId, cohortId])
+  @@index([cohortId])
+  @@index([traineeId])
+}
+
+// ============== LEARNING STRUCTURE (Program → Modules → Lessons → Assignment) ==============
+model Module {
+  id          String   @id @default(cuid())
+  programId   String
+  program     Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?  // welcome message / module overview for trainee
+  inspiringQuotes String?  // one quote per line, shown on module overview
+  order           Int      @default(0) // display order
+  startDate       DateTime? // schedule: module beginning (set by admin/mentor)
+  endDate         DateTime? // schedule: module ending (set by admin/mentor)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lessons              Lesson[]
+  assignments          Assignment[]
+  progress             Progress[]
+  traineeScheduledEvents TraineeScheduledEvent[]
+}
+
+model Lesson {
+  id        String   @id @default(cuid())
+  moduleId  String
+  module    Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title     String
+  content   String?  // rich text / markdown
+  videoUrl  String?
+  resourceUrl String? // external link or file path
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  traineeScheduledEvents TraineeScheduledEvent[]
+
+  @@index([moduleId])
+}
+
+model Assignment {
+  id           String   @id @default(cuid())
+  moduleId     String
+  module       Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  instructions String?
+  dueDate      DateTime?
+  order        Int      @default(0)
+  mandatory    Boolean  @default(true) // Each module must have exactly one mandatory assignment
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  submissions Submission[]
+}
+
+// ============== SUBMISSIONS & FEEDBACK ==============
+enum SubmissionStatus {
+  PENDING    // submitted, awaiting review
+  APPROVED
+  REJECTED
+  RESUBMIT_REQUESTED
+}
+
+model Submission {
+  id                 String           @id @default(cuid())
+  assignmentId       String
+  assignment         Assignment      @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  traineeId          String
+  trainee            User             @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  assignedReviewerId String?          // Admin can reassign to a different mentor; null = cohort mentor
+  assignedReviewer   User?            @relation("AssignedReviewer", fields: [assignedReviewerId], references: [id], onDelete: SetNull)
+  content            String?
+  fileUrl            String?
+  externalLink       String?
+  status             SubmissionStatus @default(PENDING)
+  submittedAt        DateTime        @default(now())
+  reviewedAt         DateTime?
+
+  feedback Feedback[]
+  @@index([assignmentId])
+  @@index([traineeId])
+  @@index([assignedReviewerId])
+}
+
+model Feedback {
+  id           String   @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  mentorId     String
+  mentor       User     @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  comment      String?
+  score        Float?   // optional numeric score
+  passed       Boolean? // pass/fail
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([submissionId])
+}
+
+// ============== PROGRESS TRACKING ==============
+enum ProgressStatus {
+  ACTIVE           // in progress
+  PENDING_REVIEW   // assignment(s) awaiting mentor review
+  COMPLETED        // module/program completed
+}
+
+model Progress {
+  id         String         @id @default(cuid())
+  traineeId  String
+  enrollmentId String?      // link to enrollment for cohort context
+  moduleId   String
+  module     Module        @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  status     ProgressStatus @default(ACTIVE)
+  percentComplete Int       @default(0) // 0-100
+  completedAt DateTime?    // when module was marked complete (all assignments approved)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([traineeId, moduleId])
+  @@index([traineeId])
+  @@index([moduleId])
+}
+
+// ============== CERTIFICATION ==============
+model Certificate {
+  id              String    @id @default(cuid())
+  traineeId       String
+  trainee         User      @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  programId       String
+  program         Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  certificateId   String    @unique
+  issuedAt        DateTime  @default(now())
+  pdfUrl          String?
+  revokedAt       DateTime? // Admin can revoke with reason
+  revokedReason   String?
+  approvedById    String?   // Admin who approved (if not auto-issued)
+  approvedBy      User?     @relation("CertificateApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  autoIssued      Boolean   @default(false)
+
+  @@unique([traineeId, programId])
+  @@index([certificateId])
+}
+
+// ============== LESSON ACCESS (trainee interaction = completion) ==============
+model LessonAccess {
+  id            String   @id @default(cuid())
+  traineeId     String
+  lessonId      String
+  firstAccessedAt DateTime @default(now())
+
+  @@unique([traineeId, lessonId])
+  @@index([traineeId])
+  @@index([lessonId])
+}
+
+// ============== TRAINEE SCHEDULED EVENTS (labs, workshops, mentor meetings) ==============
+enum ScheduleEventType {
+  LAB_WORKSHOP     // Lab access — no change to form
+  MENTOR_MEETING   // Technical support — meet with mentor
+  COURSE_SCHEDULE  // Course delivered by mentor — must specify chapter (module + lesson)
+}
+
+enum ScheduleRequestStatus {
+  PENDING   // awaiting admin approval
+  APPROVED  // admin approved; trainee can use for reception pass
+  REJECTED
+}
+
+model TraineeScheduledEvent {
+  id              String            @id @default(cuid())
+  traineeId        String
+  trainee          User              @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  mentorId         String?           // required for MENTOR_MEETING and optionally for COURSE_SCHEDULE
+  mentor           User?            @relation("ScheduledEventsAsMentor", fields: [mentorId], references: [id], onDelete: SetNull)
+  date             DateTime          // day of the event (time part ignored for calendar)
+  startTime        String?           // e.g. "09:00"
+  endTime          String?           // estimated leave time e.g. "17:00"
+  eventType        ScheduleEventType
+  requestCoffee    Boolean           @default(false)
+  location         String            // lab name, Pitching area, or Cafeteria
+  equipmentNeeded  String?           // free text
+  teamMembers      String?           // names of visitors in team (free text / comma-separated)
+  description     String?
+  status           ScheduleRequestStatus @default(PENDING)
+  // For COURSE_SCHEDULE: chapter to attend (module + lesson)
+  moduleId        String?
+  module           Module?           @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  lessonId        String?
+  lesson           Lesson?           @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([traineeId])
+  @@index([date])
+  @@index([mentorId])
+  @@index([status])
+  @@index([moduleId])
+  @@index([lessonId])
+}
+
+// ============== AUDIT LOG (all admin actions) ==============
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  action     String   // e.g. PROGRAM_CREATE, USER_DEACTIVATE, CERTIFICATE_REVOKE
+  entityType String   // e.g. Program, User, Certificate
+  entityId   String?
+  details    String?  // JSON string for extra context
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType])
+  @@index([createdAt])
+}

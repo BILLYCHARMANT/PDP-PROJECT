@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/* Class-based dark mode (toggle via .dark on html) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* UniPod brand colors */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --unipod-blue: #0066cc;
+  --unipod-blue-hover: #0052a3;
+  --unipod-blue-light: #e6f0fa;
+  --unipod-yellow: #facc15;
+  --unipod-yellow-bg: #fef9c3;
+  --unipod-green: #00c853;
+  --sidebar-bg: #f8f8f8;
+}
+
+.dark {
+  --background: #111827;
+  --foreground: #f9fafb;
+  --sidebar-bg: #1f2937;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-unipod-blue: var(--unipod-blue);
+  --color-unipod-blue-light: var(--unipod-blue-light);
+  --color-unipod-yellow: var(--unipod-yellow);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* UniPod primary button and link */
+.btn-unipod {
+  background-color: var(--unipod-blue);
+  color: white;
+}
+.btn-unipod:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.link-unipod {
+  color: var(--unipod-blue);
+}
+.link-unipod:hover {
+  text-decoration: underline;
+}
