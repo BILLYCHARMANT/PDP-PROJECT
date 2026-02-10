@@ -7,7 +7,9 @@ const GRADES = ["A+", "A", "B+", "B", "C", "D"] as const;
 
 type TraineeItem = {
   id: string;
+  status: string;
   trainee: { id: string; name: string | null; email: string | null };
+  feedback?: { id: string }[];
 };
 
 type SubmissionDetail = {
@@ -148,7 +150,8 @@ export function AssignmentGradingView({
   }
 
   const canGradeMentor = mode === "mentor" && detail?.status === "PENDING";
-  const canGradeAdmin = mode === "admin" && detail?.status === "PENDING_ADMIN_APPROVAL";
+  // Admin can review and provide feedback for any submission that has mentor feedback
+  const canGradeAdmin = mode === "admin" && detail?.feedback && detail.feedback.length > 0;
   const showGradeForm = canGradeMentor || canGradeAdmin;
 
   const fileDisplayName = detail?.fileUrl
@@ -177,20 +180,42 @@ export function AssignmentGradingView({
           />
         </div>
         <div className="flex-1 overflow-y-auto">
-          {filtered.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setSelectedId(s.id)}
-              className={`w-full text-left px-4 py-3 border-b border-[#f3f4f6] dark:border-[#374151] transition-colors ${
-                selectedId === s.id
-                  ? "bg-[#f3f4f6] dark:bg-[#374151] font-semibold text-[#171717] dark:text-[#f9fafb]"
-                  : "hover:bg-[#f9fafb] dark:hover:bg-[#111827] text-[#374151] dark:text-[#d1d5db]"
-              }`}
-            >
-              {s.trainee.name || s.trainee.email || "Trainee"}
-            </button>
-          ))}
+          {filtered.map((s) => {
+            const hasMentorFeedback = s.feedback && s.feedback.length > 0;
+            const statusColors: Record<string, string> = {
+              PENDING: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300",
+              PENDING_ADMIN_APPROVAL: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
+              APPROVED: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300",
+              REJECTED: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300",
+              RESUBMIT_REQUESTED: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300",
+            };
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setSelectedId(s.id)}
+                className={`w-full text-left px-4 py-3 border-b border-[#f3f4f6] dark:border-[#374151] transition-colors ${
+                  selectedId === s.id
+                    ? "bg-[#f3f4f6] dark:bg-[#374151] font-semibold text-[#171717] dark:text-[#f9fafb]"
+                    : "hover:bg-[#f9fafb] dark:hover:bg-[#111827] text-[#374151] dark:text-[#d1d5db]"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate">{s.trainee.name || s.trainee.email || "Trainee"}</span>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {hasMentorFeedback && (
+                      <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                        ✓
+                      </span>
+                    )}
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${statusColors[s.status] || "bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300"}`}>
+                      {s.status === "PENDING_ADMIN_APPROVAL" ? "Pending" : s.status.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </aside>
 
@@ -213,7 +238,11 @@ export function AssignmentGradingView({
                 className={`mt-1 text-base font-medium ${
                   detail.status === "PENDING" || detail.status === "PENDING_ADMIN_APPROVAL"
                     ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-[#374151] dark:text-[#d1d5db]"
+                    : detail.status === "APPROVED"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : detail.status === "REJECTED" || detail.status === "RESUBMIT_REQUESTED"
+                        ? "text-orange-600 dark:text-orange-400"
+                        : "text-[#374151] dark:text-[#d1d5db]"
                 }`}
               >
                 {detail.status === "PENDING_ADMIN_APPROVAL" ? "Submitted (pending admin confirmation)" : detail.status.replace(/_/g, " ")}
@@ -222,6 +251,96 @@ export function AssignmentGradingView({
                 On {new Date(detail.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
               </p>
             </section>
+
+            {/* Workflow progress indicator for admin */}
+            {mode === "admin" && (
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#6b7280] dark:text-[#9ca3af] mb-3">
+                  Review Progress
+                </p>
+                <div className="relative">
+                  <div className="flex items-center gap-2">
+                    {/* Step 1: Submitted */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                        detail.status !== "PENDING" ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white dark:bg-[#1f2937] border-[#6366f1] text-[#6366f1]"
+                      }`}>
+                        {detail.status !== "PENDING" ? (
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <span className="text-xs font-bold">1</span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-center text-[#171717] dark:text-[#f9fafb]">Submitted</p>
+                    </div>
+
+                    <div className={`flex-1 h-0.5 ${detail.status !== "PENDING" ? "bg-emerald-500" : "bg-[#e5e7eb] dark:bg-[#374151]"}`} />
+
+                    {/* Step 2: Mentor review */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                        detail.feedback && detail.feedback.length > 0
+                          ? "bg-emerald-500 border-emerald-500 text-white"
+                          : detail.status === "PENDING"
+                            ? "bg-white dark:bg-[#1f2937] border-[#e5e7eb] dark:border-[#374151] text-[#9ca3af]"
+                            : "bg-white dark:bg-[#1f2937] border-[#6366f1] text-[#6366f1]"
+                      }`}>
+                        {detail.feedback && detail.feedback.length > 0 ? (
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        ) : detail.status === "PENDING" ? (
+                          <span className="text-xs font-bold text-[#9ca3af]">2</span>
+                        ) : (
+                          <span className="text-xs font-bold">2</span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-center text-[#171717] dark:text-[#f9fafb]">Mentor review</p>
+                      {detail.feedback && detail.feedback.length > 0 && (
+                        <p className="mt-0.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">Complete</p>
+                      )}
+                    </div>
+
+                    <div className={`flex-1 h-0.5 ${
+                      detail.status === "APPROVED" || detail.status === "REJECTED"
+                        ? "bg-emerald-500"
+                        : detail.status === "PENDING_ADMIN_APPROVAL"
+                          ? "bg-blue-500"
+                          : detail.feedback && detail.feedback.length > 0
+                            ? "bg-blue-500"
+                            : "bg-[#e5e7eb] dark:bg-[#374151]"
+                    }`} />
+
+                    {/* Step 3: Admin confirmation */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                        detail.status === "APPROVED" || detail.status === "REJECTED"
+                          ? "bg-emerald-500 border-emerald-500 text-white"
+                          : detail.status === "PENDING_ADMIN_APPROVAL"
+                            ? "bg-blue-500 border-blue-500 text-white"
+                            : "bg-white dark:bg-[#1f2937] border-[#e5e7eb] dark:border-[#374151] text-[#9ca3af]"
+                      }`}>
+                        {detail.status === "APPROVED" || detail.status === "REJECTED" ? (
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        ) : detail.status === "PENDING_ADMIN_APPROVAL" ? (
+                          <span className="text-xs font-bold">3</span>
+                        ) : (
+                          <span className="text-xs font-bold text-[#9ca3af]">3</span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-center text-[#171717] dark:text-[#f9fafb]">Admin confirmation</p>
+                      {detail.status === "PENDING_ADMIN_APPROVAL" && (
+                        <p className="mt-0.5 text-xs text-blue-600 dark:text-blue-400 font-medium">Pending</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
 
             {(detail.fileUrl || detail.externalLink) && (
               <section>
@@ -277,23 +396,66 @@ export function AssignmentGradingView({
               </section>
             )}
 
-            {mode === "admin" && detail.feedback?.length > 0 && (
+            {mode === "admin" && (
               <section>
                 <p className="text-xs font-semibold uppercase tracking-wide text-[#6b7280] dark:text-[#9ca3af]">
                   Mentor evaluation
                 </p>
-                <div className="mt-1 rounded-lg bg-white dark:bg-[#1f2937] border border-[#e5e7eb] dark:border-[#374151] p-4 text-sm">
-                  {detail.feedback[detail.feedback.length - 1]?.grade && (
-                    <p className="font-medium text-[#171717] dark:text-[#f9fafb]">
-                      Grade: {detail.feedback[detail.feedback.length - 1].grade}
+                {detail.feedback && detail.feedback.length > 0 ? (
+                  <div className="mt-1 space-y-3">
+                    {detail.feedback.map((f, idx) => (
+                      <div key={f.id} className={`rounded-lg bg-white dark:bg-[#1f2937] border border-[#e5e7eb] dark:border-[#374151] p-4 ${idx > 0 ? "mt-3" : ""}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="px-2 py-1 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                            Mentor feedback
+                          </div>
+                          {f.mentor?.name && (
+                            <span className="text-xs text-[#6b7280] dark:text-[#9ca3af]">
+                              by {f.mentor.name}
+                            </span>
+                          )}
+                        </div>
+                        {f.grade && (
+                          <p className="text-lg font-bold text-[#171717] dark:text-[#f9fafb] mb-2">
+                            Grade: {f.grade}
+                          </p>
+                        )}
+                        {f.comment && (
+                          <div>
+                            <p className="text-xs font-medium text-[#6b7280] dark:text-[#9ca3af] mb-1">Comment:</p>
+                            <p className="text-sm text-[#374151] dark:text-[#d1d5db] whitespace-pre-wrap">
+                              {f.comment}
+                            </p>
+                          </div>
+                        )}
+                        {f.adminComment && (
+                          <div className="mt-3 pt-3 border-t border-[#e5e7eb] dark:border-[#374151]">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="px-2 py-1 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                                Admin reviewed
+                              </div>
+                            </div>
+                            <p className="text-xs font-medium text-[#6b7280] dark:text-[#9ca3af] mb-1">Admin note:</p>
+                            <p className="text-sm text-[#374151] dark:text-[#d1d5db] whitespace-pre-wrap">
+                              {f.adminComment}
+                            </p>
+                            {f.adminApprovedAt && (
+                              <p className="text-xs text-[#6b7280] dark:text-[#9ca3af] mt-2">
+                                Confirmed on {new Date(f.adminApprovedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4">
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      <span className="font-medium">No mentor feedback yet.</span> This submission is awaiting mentor review.
                     </p>
-                  )}
-                  {detail.feedback[detail.feedback.length - 1]?.comment && (
-                    <p className="mt-1 text-[#374151] dark:text-[#d1d5db] whitespace-pre-wrap">
-                      {detail.feedback[detail.feedback.length - 1].comment}
-                    </p>
-                  )}
-                </div>
+                  </div>
+                )}
               </section>
             )}
 
@@ -361,10 +523,19 @@ export function AssignmentGradingView({
               </>
             )}
 
-            {detail.status !== "PENDING" && detail.status !== "PENDING_ADMIN_APPROVAL" && (
-              <p className="text-sm text-[#6b7280] dark:text-[#9ca3af]">
-                This submission has already been evaluated.
-              </p>
+            {mode === "admin" && detail.feedback && detail.feedback.length > 0 && detail.status === "APPROVED" && (
+              <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-4">
+                <p className="text-sm text-emerald-800 dark:text-emerald-200">
+                  <span className="font-medium">Submission approved.</span> This evaluation has been finalized.
+                </p>
+              </div>
+            )}
+            {mode === "admin" && detail.feedback && detail.feedback.length === 0 && (
+              <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  <span className="font-medium">Awaiting mentor evaluation.</span> Admin review will be available once mentor provides feedback.
+                </p>
+              </div>
             )}
           </div>
         )}

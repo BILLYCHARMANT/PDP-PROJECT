@@ -56,7 +56,11 @@ export async function GET(req: Request) {
           },
         },
         trainee: { select: { id: true, name: true, email: true } },
-        feedback: true,
+        feedback: {
+          include: {
+            mentor: { select: { id: true, name: true } },
+          },
+        },
       },
     });
     return NextResponse.json(submissions);

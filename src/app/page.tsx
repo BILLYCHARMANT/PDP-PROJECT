@@ -16,7 +16,7 @@ export default async function HomePage() {
           <span className="text-[#171717]"> PDP</span>
         </h1>
         <p className="text-[#374151]">
-          Professional Development Program — learning, progress tracking, and
+          Prototyping Development Program — learning, progress tracking, and
           <span className="font-medium px-1" style={{ color: "var(--unipod-yellow)", backgroundColor: "var(--unipod-yellow-bg)" }}>certification</span>.
         </p>
         <div className="flex gap-4 justify-center">

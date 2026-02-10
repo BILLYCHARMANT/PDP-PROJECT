@@ -106,7 +106,7 @@ async function generateCertificatePDF(params: {
     font: bold,
     color: rgb(0.1, 0.2, 0.4),
   });
-  page.drawText("UNIPOD Professional Development Program", {
+  page.drawText("UNIPOD Prototyping Development Program", {
     x: 120,
     y: titleY - 24,
     size: 12,

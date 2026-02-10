@@ -27,7 +27,12 @@ export async function GET(
       include: {
         assignment: { include: { module: { select: { id: true, title: true, programId: true } } } },
         trainee: { select: { id: true, name: true, email: true } },
-        feedback: true,
+        feedback: {
+          include: {
+            mentor: { select: { id: true, name: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
     if (!submission) {

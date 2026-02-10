@@ -46,20 +46,27 @@ export async function POST(req: Request) {
         );
       }
     }
-    if (session.user.role === "ADMIN" && submission.status === "PENDING_ADMIN_APPROVAL" && parsed.data.adminComment !== undefined) {
+    // Admin can add comments and approve/reject any submission that has mentor feedback
+    if (session.user.role === "ADMIN" && parsed.data.adminComment !== undefined) {
       const latestFeedback = await prisma.feedback.findFirst({
         where: { submissionId: parsed.data.submissionId },
         orderBy: { createdAt: "desc" },
       });
-      if (latestFeedback) {
-        await prisma.feedback.update({
-          where: { id: latestFeedback.id },
-          data: {
-            adminComment: parsed.data.adminComment || null,
-            adminApprovedAt: new Date(),
-          },
-        });
+      if (!latestFeedback) {
+        return NextResponse.json(
+          { error: "No mentor feedback found. Admin can only review submissions that have been evaluated by a mentor." },
+          { status: 400 }
+        );
       }
+      // Update existing feedback with admin comment
+      await prisma.feedback.update({
+        where: { id: latestFeedback.id },
+        data: {
+          adminComment: parsed.data.adminComment || null,
+          adminApprovedAt: parsed.data.status === "APPROVED" ? new Date() : null,
+        },
+      });
+      // Update submission status if changing from PENDING_ADMIN_APPROVAL or if admin is overriding
       const newStatus = parsed.data.status === "APPROVED" ? "APPROVED" : parsed.data.status;
       await prisma.submission.update({
         where: { id: parsed.data.submissionId },

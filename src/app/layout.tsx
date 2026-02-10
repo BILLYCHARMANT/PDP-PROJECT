@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "UNIPOD PDP Dashboard",
-  description: "Professional Development Program - Learning, Progress & Certification",
+  description: "Prototyping Development Program - Learning, Progress & Certification",
 };
 
 export default function RootLayout({

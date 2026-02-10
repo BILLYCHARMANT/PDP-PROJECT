@@ -1,6 +1,6 @@
 # UNIPOD PDP Dashboard
 
-Web-based Professional Development Program (PDP) dashboard for UNIPOD: learning content, trainee assessment, progress tracking, and certificate generation.
+Web-based Prototyping Development Program (PDP) dashboard for UNIPOD: learning content, trainee assessment, progress tracking, and certificate generation.
 
 ## Tech stack
 

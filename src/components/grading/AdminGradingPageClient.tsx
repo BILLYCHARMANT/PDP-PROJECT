@@ -7,17 +7,21 @@ import { AssignmentGradingView } from "./AssignmentGradingView";
 type Submission = {
   id: string;
   assignmentId: string;
+  status: string;
   assignment: { id: string; title: string };
   trainee: { id: string; name: string | null; email: string | null };
+  feedback?: { id: string; mentor?: { name: string | null } }[];
 };
 
 export function AdminGradingPageClient({ backHref }: { backHref: string }) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   useEffect(() => {
-    fetch("/api/submissions?status=PENDING_ADMIN_APPROVAL")
+    // Fetch all submissions (no status filter) so admin can see all gradings
+    fetch("/api/submissions")
       .then((r) => r.json())
       .then((data) => {
         setSubmissions(Array.isArray(data) ? data : []);
@@ -35,31 +39,39 @@ export function AdminGradingPageClient({ backHref }: { backHref: string }) {
   }, [submissions]);
 
   const filteredSubmissions = useMemo(
-    () =>
-      selectedAssignmentId
+    () => {
+      let filtered = selectedAssignmentId
         ? submissions.filter((s) => s.assignmentId === selectedAssignmentId)
-        : [],
-    [submissions, selectedAssignmentId]
+        : [];
+      
+      if (statusFilter !== "ALL") {
+        filtered = filtered.filter((s) => s.status === statusFilter);
+      }
+      
+      return filtered;
+    },
+    [submissions, selectedAssignmentId, statusFilter]
   );
 
   const assignmentTitle =
     selectedAssignmentId && assignments.find((a) => a.id === selectedAssignmentId)?.title;
 
-  if (loading) {
-    return <p className="text-[#6b7280] dark:text-[#9ca3af]">Loading…</p>;
-  }
-
+  // Set default assignment when assignments are loaded (must be before any conditional returns)
   useEffect(() => {
     if (assignments.length > 0 && !selectedAssignmentId) {
       setSelectedAssignmentId(assignments[0].id);
     }
   }, [assignments, selectedAssignmentId]);
 
+  if (loading) {
+    return <p className="text-[#6b7280] dark:text-[#9ca3af]">Loading…</p>;
+  }
+
   if (submissions.length === 0) {
     return (
       <div className="rounded-xl border border-[#e5e7eb] dark:border-[#374151] bg-white dark:bg-[#1f2937] p-8 text-center">
         <p className="text-[#6b7280] dark:text-[#9ca3af]">
-          No submissions pending admin confirmation. Mentor-evaluated submissions will appear here.
+          No submissions found.
         </p>
       </div>
     );
@@ -71,7 +83,7 @@ export function AdminGradingPageClient({ backHref }: { backHref: string }) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex-shrink-0 mb-4">
+      <div className="flex-shrink-0 mb-4 space-y-3">
         <div className="inline-flex items-center rounded-xl border border-[#e5e7eb] dark:border-[#374151] bg-white dark:bg-[#1f2937] shadow-sm overflow-hidden">
           <Link
             href={backHref}
@@ -102,6 +114,22 @@ export function AdminGradingPageClient({ backHref }: { backHref: string }) {
               <span className="text-sm font-medium text-[#171717] dark:text-[#f9fafb]">{assignmentTitle}</span>
             </div>
           )}
+        </div>
+        {/* Status filter */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[#6b7280] dark:text-[#9ca3af]">Filter by status:</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="text-sm rounded-lg border border-[#e5e7eb] dark:border-[#374151] bg-white dark:bg-[#1f2937] px-3 py-1.5 text-[#171717] dark:text-[#f9fafb] focus:outline-none focus:ring-2 focus:ring-[#6366f1]"
+          >
+            <option value="ALL">All submissions</option>
+            <option value="PENDING">Pending mentor review</option>
+            <option value="PENDING_ADMIN_APPROVAL">Pending admin approval</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="RESUBMIT_REQUESTED">Resubmission requested</option>
+          </select>
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-hidden">
