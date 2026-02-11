@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { getHomeDataByRole } from "@/lib/dashboardHomeData";
 import { DashboardHomeView } from "@/components/dashboard/DashboardHomeView";
 import Link from "next/link";
@@ -13,72 +12,55 @@ export default async function DashboardPage() {
   const userId = session.user.id;
   const userName = session.user.name ?? null;
 
-  // Trainee with no enrollments: send to learn (no home data)
-  if (role === "TRAINEE") {
-    const enrollments = await prisma.enrollment.findMany({
-      where: { traineeId: userId },
-      include: {
-        cohort: {
-          include: {
-            program: {
-              include: {
-                modules: {
-                  orderBy: { order: "asc" },
-                  include: { assignments: { orderBy: { order: "asc" } } },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-    if (enrollments.length === 0) {
-      redirect("/dashboard/trainee/learn");
-    }
+  let data;
+  try {
+    // Get home data - getTraineeHomeData returns null if no enrollments
+    data = await getHomeDataByRole(role, userId, userName);
+  } catch (error) {
+    console.error("Dashboard error:", error);
+    redirect("/login");
   }
 
-  const data = await getHomeDataByRole(role, userId, userName);
+  // Trainee with no enrollments: show empty state instead of redirecting
+  if (role === "TRAINEE" && !data) {
+    const firstName = userName?.split(/\s+/)[0] ?? "Trainee";
+    return (
+      <div
+        className="min-h-full rounded-xl p-6"
+        style={{ backgroundColor: "var(--sidebar-bg)" }}
+      >
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-[#171717] dark:text-[#f9fafb]">
+            Welcome, {firstName}
+          </h1>
+          <p className="mt-1 text-[#6b7280] dark:text-[#9ca3af]">Your progress and upcoming work.</p>
+        </div>
+        <div className="rounded-xl border border-[#e5e7eb] dark:border-[#374151] bg-white dark:bg-[#1f2937] p-8 text-center">
+          <p className="text-lg font-medium text-[#171717] dark:text-[#f9fafb] mb-2">
+            No enrollments yet
+          </p>
+          <p className="text-sm text-[#6b7280] dark:text-[#9ca3af] mb-6">
+            You haven't been enrolled in any courses yet. Once you're enrolled in a cohort, you'll see your progress and assignments here.
+          </p>
+          <Link
+            href="/dashboard/trainee/learn"
+            className="inline-block rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: "var(--unipod-blue)" }}
+          >
+            View available courses
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
-  // Trainee with data can use same layout; if getTraineeHomeData returns null we already redirected
+  // No data for other roles: redirect to login
+  if (!data) redirect("/login");
+
+  // Trainee with data can use same layout; pendingDeliverables already in data.section4
   if (role === "TRAINEE" && data) {
-    const enrollment = (await prisma.enrollment.findMany({
-      where: { traineeId: userId },
-      include: {
-        cohort: {
-          include: {
-            program: {
-              include: {
-                modules: { orderBy: { order: "asc" }, include: { assignments: { orderBy: { order: "asc" } } } },
-              },
-            },
-          },
-        },
-      },
-    }))[0];
-    const program = enrollment.cohort.program;
-    const cohort = enrollment.cohort;
-    const allAssignmentIds = program.modules.flatMap((m) => m.assignments.map((a) => a.id));
-    const approvedSubmissions = allAssignmentIds.length
-      ? await prisma.submission.findMany({
-          where: { traineeId: userId, assignmentId: { in: allAssignmentIds }, status: "APPROVED" },
-          select: { assignmentId: true },
-        })
-      : [];
-    const approvedSet = new Set(approvedSubmissions.map((s) => s.assignmentId));
-    const pendingDeliverables = program.modules.flatMap((m) =>
-      m.assignments
-        .filter((a) => !approvedSet.has(a.id))
-        .map((a) => ({
-          id: a.id,
-          title: a.title,
-          moduleId: m.id,
-          moduleTitle: m.title,
-          dueDate: a.dueDate?.toISOString() ?? null,
-        }))
-    ).slice(0, 8);
-
-    // Use same home layout (charts + tables) for trainee
-    const sections: [React.ReactNode, React.ReactNode, React.ReactNode, React.ReactNode] = [
+      // Use same home layout (charts + tables) for trainee
+      const sections: [React.ReactNode, React.ReactNode, React.ReactNode, React.ReactNode] = [
       <ul key="s1" className="space-y-2">
         {data.section1.upcomingCohorts.length === 0 ? (
           <li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No upcoming cohorts.</li>
@@ -144,8 +126,6 @@ export default async function DashboardPage() {
       />
     );
   }
-
-  if (!data) redirect("/login");
 
   // Admin and Mentor: same section shapes (upcoming cohorts, programs, recent enrollments, submitted assignments)
   const sections: [React.ReactNode, React.ReactNode, React.ReactNode, React.ReactNode] = [

@@ -8,6 +8,24 @@ export default async function TraineeLearnPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== "TRAINEE") redirect("/dashboard");
 
+  // First check if trainee has any enrollments (simple count query)
+  const enrollmentCount = await prisma.enrollment.count({
+    where: { traineeId: session.user.id },
+  });
+
+  // If no enrollments, return empty array to show empty state
+  if (enrollmentCount === 0) {
+    return (
+      <div
+        className="min-h-full rounded-xl p-6"
+        style={{ backgroundColor: "var(--sidebar-bg)" }}
+      >
+        <TraineeCourseList courses={[]} />
+      </div>
+    );
+  }
+
+  // Only fetch full enrollment data if enrollments exist
   const enrollments = await prisma.enrollment.findMany({
     where: { traineeId: session.user.id },
     include: {
@@ -22,10 +40,11 @@ export default async function TraineeLearnPage() {
       },
     },
   });
-  if (enrollments.length === 0) redirect("/dashboard");
 
   // Unique programs (courses) the trainee has access to via their enrollments
   const programIds = [...new Set(enrollments.map((e) => e.cohort.programId))];
+  
+  // Query programs - we know programIds is not empty because enrollmentCount > 0
   const programs = await prisma.program.findMany({
     where: { id: { in: programIds } },
     include: { modules: { select: { id: true } } },

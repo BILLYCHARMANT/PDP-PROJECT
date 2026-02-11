@@ -158,38 +158,45 @@ export async function getMentorHomeData(userId: string, userName: string | null)
     programIds.length > 0
       ? (await prisma.assignment.findMany({ where: { module: { programId: { in: programIds } } }, select: { id: true } })).map((a) => a.id)
       : [];
-  const submissionWhere = { traineeId: { in: traineeIdsInCohorts } };
+  // Build submission where clause - avoid IN (NULL) by only using 'in' when array has items
+  const submissionWhereBase = traineeIdsInCohorts.length > 0 
+    ? { traineeId: { in: traineeIdsInCohorts } }
+    : {};
 
   const [programCount, enrollmentCount, traineeCount, pendingCount, technicalSupportCount] = await Promise.all([
     programIds.length > 0 ? prisma.program.count({ where: { id: { in: programIds } } }) : 0,
     cohortIds.length > 0 ? prisma.enrollment.count({ where: { cohortId: { in: cohortIds } } }) : 0,
-    cohortIds.length > 0 ? prisma.user.count({ where: { id: { in: [...new Set(traineeIdsInCohorts)] }, role: "TRAINEE" } }) : 0,
-    traineeIdsInCohorts.length > 0 ? prisma.submission.count({ where: { ...submissionWhere, status: "PENDING" } }) : 0,
+    traineeIdsInCohorts.length > 0 ? prisma.user.count({ where: { id: { in: [...new Set(traineeIdsInCohorts)] }, role: "TRAINEE" } }) : 0,
+    traineeIdsInCohorts.length > 0 ? prisma.submission.count({ where: { ...submissionWhereBase, status: "PENDING" } }) : 0,
     prisma.traineeScheduledEvent.count({ where: { mentorId: userId, eventType: "MENTOR_MEETING", status: "PENDING" } }),
   ]);
 
-  const days = buildActivityDays(submissionWhere);
-  const submissionsByDay = await Promise.all(
-    days.map(async (day) => {
-      const next = new Date(day.date);
-      next.setDate(next.getDate() + 1);
-      const count = await prisma.submission.count({
-        where: { ...submissionWhere, submittedAt: { gte: day.date, lt: next } },
-      });
-      return { ...day, count };
-    })
-  );
+  const days = buildActivityDays(submissionWhereBase);
+  const submissionsByDay = traineeIdsInCohorts.length > 0
+    ? await Promise.all(
+        days.map(async (day) => {
+          const next = new Date(day.date);
+          next.setDate(next.getDate() + 1);
+          const count = await prisma.submission.count({
+            where: { ...submissionWhereBase, submittedAt: { gte: day.date, lt: next } },
+          });
+          return { ...day, count };
+        })
+      )
+    : days.map((d) => ({ ...d, count: 0 }));
   const activityData = days.map((d) => {
     const found = submissionsByDay.find((s) => s.date.getTime() === d.date.getTime());
     return { date: d.date.toISOString(), label: d.label, count: found?.count ?? 0 };
   });
 
-  const [pending, approved, rejected, resubmit] = await Promise.all([
-    prisma.submission.count({ where: { ...submissionWhere, status: "PENDING" } }),
-    prisma.submission.count({ where: { ...submissionWhere, status: "APPROVED" } }),
-    prisma.submission.count({ where: { ...submissionWhere, status: "REJECTED" } }),
-    prisma.submission.count({ where: { ...submissionWhere, status: "RESUBMIT_REQUESTED" } }),
-  ]);
+  const [pending, approved, rejected, resubmit] = traineeIdsInCohorts.length > 0
+    ? await Promise.all([
+        prisma.submission.count({ where: { ...submissionWhereBase, status: "PENDING" } }),
+        prisma.submission.count({ where: { ...submissionWhereBase, status: "APPROVED" } }),
+        prisma.submission.count({ where: { ...submissionWhereBase, status: "REJECTED" } }),
+        prisma.submission.count({ where: { ...submissionWhereBase, status: "RESUBMIT_REQUESTED" } }),
+      ])
+    : [0, 0, 0, 0];
   const donutData = [
     { name: "Pending", value: pending, color: "#0066cc" },
     { name: "Approved", value: approved, color: "#00c853" },
