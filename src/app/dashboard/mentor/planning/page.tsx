@@ -29,13 +29,13 @@ export default async function MentorPlanningPage() {
       include: { program: { select: { id: true, name: true } } },
     }),
     prisma.module.findMany({
-      where: { program: { cohorts: { some: { mentorId: userId } } } },
-      include: { program: { select: { id: true, name: true } } },
+      where: { course: { program: { cohorts: { some: { mentorId: userId } } } } },
+      include: { course: { include: { program: { select: { id: true, name: true } } } } },
     }),
     prisma.assignment.findMany({
-      where: { module: { program: { cohorts: { some: { mentorId: userId } } } } },
+      where: { module: { course: { program: { cohorts: { some: { mentorId: userId } } } } } },
       include: {
-        module: { select: { id: true, title: true, program: { select: { id: true, name: true } } } },
+        module: { select: { id: true, title: true, course: { include: { program: { select: { id: true, name: true } } } } } },
       },
     }),
   ]);
@@ -87,8 +87,8 @@ export default async function MentorPlanningPage() {
   }
 
   for (const m of modules) {
-    const programId = m.programId;
-    const programName = m.program.name;
+    const programId = m.course?.programId ?? undefined;
+    const programName = m.course?.program?.name ?? "Course";
     if (m.startDate) {
       const d = new Date(m.startDate);
       scheduleItems.push({
@@ -116,8 +116,9 @@ export default async function MentorPlanningPage() {
   }
 
   for (const a of assignments) {
-    const programId = a.module.program.id;
-    const programName = a.module.program.name;
+    const programId = a.module.course?.program?.id;
+    const programName = a.module.course?.program?.name ?? "Course";
+    if (!programId) continue;
     const moduleId = a.module.id;
     if (a.dueDate) {
       const d = new Date(a.dueDate);

@@ -7,10 +7,12 @@ export function EnrollTrainees({
   cohortId,
   enrolled,
   trainees,
+  onSuccess,
 }: {
   cohortId: string;
   enrolled: User[];
   trainees: User[];
+  onSuccess?: () => void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,7 +31,11 @@ export function EnrollTrainees({
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setSelected([]);
-        window.location.reload();
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          window.location.reload();
+        }
       } else {
         alert(data.error || "Failed to enroll");
       }

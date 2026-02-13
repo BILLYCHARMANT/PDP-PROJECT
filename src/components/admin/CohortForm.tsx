@@ -1,18 +1,21 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 type Program = { id: string; name: string };
+type Course = { id: string; name: string; programId: string | null };
 type Mentor = { id: string; name: string; email: string };
 
 export function CohortForm({
   programs,
+  allCourses,
   mentors,
   initial = {},
   cohortId,
   onSuccess,
 }: {
   programs: Program[];
+  allCourses?: Course[];
   mentors: Mentor[];
   initial?: {
     name?: string;
@@ -24,10 +27,29 @@ export function CohortForm({
 }) {
   const router = useRouter();
   const [name, setName] = useState(initial.name ?? "");
-  const [programId, setProgramId] = useState(initial.programId ?? "");
+  const [selectedProgramId, setSelectedProgramId] = useState(initial.programId ?? "");
+  const [programId, setProgramId] = useState(initial.programId ?? ""); // This will be set when course is selected
+  const [courseId, setCourseId] = useState("");
   const [mentorId, setMentorId] = useState(initial.mentorId ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [courses, setCourses] = useState<Course[]>([]);
+
+  // Filter courses by selected program
+  useEffect(() => {
+    if (selectedProgramId && allCourses) {
+      const filtered = allCourses.filter((c) => c.programId === selectedProgramId);
+      setCourses(filtered);
+      // Clear course selection when program changes
+      setCourseId("");
+      // Set programId to selected program (this is what gets saved)
+      setProgramId(selectedProgramId);
+    } else {
+      setCourses([]);
+      setCourseId("");
+      setProgramId("");
+    }
+  }, [selectedProgramId, allCourses]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -81,14 +103,14 @@ export function CohortForm({
       </div>
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1">
-          Course <span className="text-xs font-normal text-slate-500">(optional - assign later when creating course)</span>
+          Program <span className="text-xs font-normal text-slate-500">(optional - assign later)</span>
         </label>
         <select
-          value={programId}
-          onChange={(e) => setProgramId(e.target.value)}
+          value={selectedProgramId}
+          onChange={(e) => setSelectedProgramId(e.target.value)}
           className="w-full rounded-lg border border-slate-300 px-3 py-2"
         >
-          <option value="">No course (assign later)</option>
+          <option value="">No program (assign later)</option>
           {programs.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -96,6 +118,39 @@ export function CohortForm({
           ))}
         </select>
       </div>
+      {selectedProgramId && (
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Course <span className="text-xs font-normal text-slate-500">(optional - view courses assigned to this program)</span>
+          </label>
+          <select
+            value={courseId}
+            onChange={(e) => setCourseId(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+          >
+            <option value="">No course selected (cohort will be assigned to program)</option>
+            {courses.length === 0 ? (
+              <option value="" disabled>No courses available for this program</option>
+            ) : (
+              courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))
+            )}
+          </select>
+          {courses.length === 0 && selectedProgramId && (
+            <p className="text-xs text-slate-500 mt-1">
+              No courses assigned to this program yet. You can assign courses to this program from the program management page.
+            </p>
+          )}
+          {courseId && (
+            <p className="text-xs text-blue-600 mt-1">
+              Note: The cohort will be assigned to the program. Course selection is for reference only.
+            </p>
+          )}
+        </div>
+      )}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1">
           Mentor

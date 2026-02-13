@@ -29,11 +29,15 @@ export async function POST(
     }
     const cohort = await prisma.cohort.findUnique({
       where: { id: cohortId },
-      include: { program: { include: { modules: true } } },
+      include: {
+        program: { include: { courses: { include: { modules: true } } } },
+      },
     });
     if (!cohort) {
       return NextResponse.json({ error: "Cohort not found" }, { status: 404 });
     }
+    const programModules =
+      cohort.program?.courses.flatMap((c) => c.modules) ?? [];
     const created: string[] = [];
     for (const traineeId of parsed.data.traineeIds) {
       const trainee = await prisma.user.findUnique({
@@ -49,8 +53,8 @@ export async function POST(
           update: {},
         });
         created.push(traineeId);
-        // Initialize progress for each module in the program
-        for (const mod of cohort.program.modules) {
+        // Initialize progress for each module in the program's courses
+        for (const mod of programModules) {
           await prisma.progress.upsert({
             where: {
               traineeId_moduleId: { traineeId, moduleId: mod.id },

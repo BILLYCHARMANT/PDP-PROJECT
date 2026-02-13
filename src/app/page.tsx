@@ -6,7 +6,7 @@ import Link from "next/link";
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
   if (session?.user) {
-    redirect("/dashboard");
+    return redirect("/dashboard");
   }
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-white">

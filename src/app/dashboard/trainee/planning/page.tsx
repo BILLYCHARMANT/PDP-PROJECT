@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { SubmissionStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -13,6 +14,7 @@ export default async function TraineePlanningPage() {
     include: {
       cohort: {
         select: {
+          name: true,
           startDate: true,
           endDate: true,
           programId: true,
@@ -27,15 +29,14 @@ export default async function TraineePlanningPage() {
   const modules =
     programIds.length > 0
       ? await prisma.module.findMany({
-          where: { programId: { in: programIds } },
+          where: { course: { programId: { in: programIds } } },
           select: {
             id: true,
             title: true,
             order: true,
             startDate: true,
             endDate: true,
-            programId: true,
-            program: { select: { name: true } },
+            course: { select: { programId: true, program: { select: { name: true } } } },
           },
         })
       : [];
@@ -44,7 +45,7 @@ export default async function TraineePlanningPage() {
   const assignments =
     programIds.length > 0
       ? await prisma.assignment.findMany({
-          where: { module: { programId: { in: programIds } } },
+          where: { module: { course: { programId: { in: programIds } } } },
           select: {
             id: true,
             title: true,
@@ -52,7 +53,7 @@ export default async function TraineePlanningPage() {
             dueDate: true,
             moduleId: true,
             module: {
-              select: { title: true, programId: true, program: { select: { name: true } } },
+              select: { title: true, course: { select: { programId: true, program: { select: { name: true } } } } },
             },
           },
         })
@@ -63,12 +64,14 @@ export default async function TraineePlanningPage() {
   const lessonsForProgram =
     programIds.length > 0
       ? await prisma.lesson.findMany({
-          where: { module: { programId: { in: programIds } } },
+          where: { module: { course: { programId: { in: programIds } } } },
           select: { id: true, title: true, order: true, moduleId: true },
         })
       : [];
   const lessonIds = lessonsForProgram.map((l) => l.id);
-  const moduleIdToProgramId = new Map(modules.map((m) => [m.id, m.programId]));
+  const moduleIdToProgramId = new Map(
+    modules.map((m) => [m.id, m.course?.programId]).filter((e): e is [string, string] => e[1] != null)
+  );
 
   const [approvedSubmissionsCount, progressRecords, traineeScheduledEvents, accessedLessons] = await Promise.all([
     assignmentIds.length > 0
@@ -76,7 +79,7 @@ export default async function TraineePlanningPage() {
           where: {
             traineeId: session.user.id,
             assignmentId: { in: assignmentIds },
-            status: "APPROVED",
+            status: SubmissionStatus.APPROVED,
           },
         })
       : 0,
@@ -162,16 +165,18 @@ export default async function TraineePlanningPage() {
   const courseProgressPercent =
     courseProgressPercentFromChapters ?? courseProgressPercentFromProgress ?? 0;
 
-  const assignmentItems = assignments.map((a) => ({
-    id: a.id,
-    title: a.title,
-    description: a.description,
-    dueDate: a.dueDate,
-    moduleId: a.moduleId,
-    moduleTitle: a.module.title,
-    programId: a.module.programId,
-    programName: a.module.program.name,
-  }));
+  const assignmentItems = assignments
+    .filter((a) => a.module.course?.programId && a.module.course?.program?.name)
+    .map((a) => ({
+      id: a.id,
+      title: a.title,
+      description: a.description,
+      dueDate: a.dueDate,
+      moduleId: a.moduleId,
+      moduleTitle: a.module.title,
+      programId: a.module.course!.programId!,
+      programName: a.module.course!.program!.name,
+    }));
 
   const enrollmentItems = enrollments
     .filter((e) => e.cohort.programId != null)
@@ -209,6 +214,8 @@ export default async function TraineePlanningPage() {
     mentorName?: string | null;
     /** PENDING | APPROVED | REJECTED — only for lab_workshop / mentor_meeting */
     requestStatus?: string;
+    /** For course_schedule: module → lesson label */
+    chapterLabel?: string;
   }[] = [];
   enrollmentItems.forEach((e) => {
     if (e.cohortStart) {
@@ -241,10 +248,10 @@ export default async function TraineePlanningPage() {
         id: `module-start-${m.id}`,
         type: "module_start",
         date: d.toISOString().slice(0, 10),
-        label: `${m.program.name}: ${m.title} start`,
-        programName: m.program.name,
+        label: `${m.course?.program?.name ?? "Course"}: ${m.title} start`,
+        programName: m.course?.program?.name ?? "Course",
         moduleTitle: m.title,
-        href: `/dashboard/trainee/learn/${m.programId}/${m.id}`,
+        href: `/dashboard/trainee/learn/${m.course?.programId}/${m.id}`,
       });
     }
     if (m.endDate) {
@@ -253,10 +260,10 @@ export default async function TraineePlanningPage() {
         id: `module-end-${m.id}`,
         type: "module_end",
         date: d.toISOString().slice(0, 10),
-        label: `${m.program.name}: ${m.title} end`,
-        programName: m.program.name,
+        label: `${m.course?.program?.name ?? "Course"}: ${m.title} end`,
+        programName: m.course?.program?.name ?? "Course",
         moduleTitle: m.title,
-        href: `/dashboard/trainee/learn/${m.programId}/${m.id}`,
+        href: `/dashboard/trainee/learn/${m.course?.programId}/${m.id}`,
       });
     }
   });
@@ -315,7 +322,7 @@ export default async function TraineePlanningPage() {
 
   const firstProgramId = enrollmentItems[0]?.programId;
   const orderedModules = [...modules]
-    .filter((m) => m.programId === firstProgramId)
+    .filter((m) => m.course?.programId === firstProgramId)
     .sort((a, b) => a.order - b.order);
 
   const lessonsByModule = new Map<string, { id: string; title: string; order: number }[]>();

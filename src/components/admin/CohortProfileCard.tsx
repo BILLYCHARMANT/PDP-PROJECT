@@ -15,6 +15,7 @@ export function CohortProfileCard({
   mentor,
   enrollmentCount,
   programs,
+  courses,
   mentors,
   initial,
   hideDelete,
@@ -25,6 +26,7 @@ export function CohortProfileCard({
   mentor: { id: string; name: string; email: string } | null;
   enrollmentCount: number;
   programs: Program[];
+  courses?: Array<{ id: string; name: string; programId: string | null }>;
   mentors: Mentor[];
   initial: { name?: string; programId?: string | null; mentorId?: string | null };
   hideDelete?: boolean;
@@ -127,8 +129,9 @@ export function CohortProfileCard({
             <CohortForm
               cohortId={cohortId}
               programs={programs}
+              allCourses={courses}
               mentors={mentors}
-              initial={initial}
+              initial={{ ...initial, programId: initial.programId ?? undefined, mentorId: initial.mentorId ?? undefined }}
               onSuccess={() => setEditModalOpen(false)}
             />
           </div>

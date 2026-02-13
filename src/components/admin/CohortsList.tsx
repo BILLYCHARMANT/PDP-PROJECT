@@ -20,6 +20,7 @@ export function CohortsList() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterValue, setFilterValue] = useState<string>(""); // "" = All, "program:id", "mentor:id"
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   function loadCohorts() {
@@ -61,13 +62,31 @@ export function CohortsList() {
     }
   }
 
+  const uniquePrograms = Array.from(
+    new Map(cohorts.filter((c) => c.program).map((c) => [c.program!.id, c.program!])).values()
+  ).sort((a, b) => a.name.localeCompare(b.name));
+  const uniqueMentors = Array.from(
+    new Map(cohorts.filter((c) => c.mentor).map((c) => [c.mentor!.id, c.mentor!])).values()
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
   const filtered = cohorts.filter((c) => {
-    const s = searchTerm.toLowerCase();
-    return (
+    const s = searchTerm.toLowerCase().trim();
+    const matchesSearch =
+      !s ||
       c.name.toLowerCase().includes(s) ||
       (c.program?.name ?? "").toLowerCase().includes(s) ||
-      (c.mentor?.name ?? "").toLowerCase().includes(s)
-    );
+      (c.mentor?.name ?? "").toLowerCase().includes(s);
+    if (!matchesSearch) return false;
+    if (!filterValue) return true;
+    if (filterValue.startsWith("program:")) {
+      const id = filterValue.slice("program:".length);
+      return c.programId === id;
+    }
+    if (filterValue.startsWith("mentor:")) {
+      const id = filterValue.slice("mentor:".length);
+      return c.mentor?.id === id;
+    }
+    return true;
   });
 
   function formatDate(date: string | undefined) {
@@ -104,10 +123,32 @@ export function CohortsList() {
           </div>
           <div className="flex items-center gap-2">
             <select
-              aria-label="Filter"
-              className="rounded-lg border border-[#e5e7eb] bg-white pl-3 pr-8 py-2 text-sm text-[#374151]"
+              aria-label="Filter cohorts"
+              value={filterValue}
+              onChange={(e) => setFilterValue(e.target.value)}
+              className="rounded-lg border border-[#e5e7eb] bg-white pl-3 pr-8 py-2 text-sm text-[#374151] min-w-[160px]"
             >
-              <option>All</option>
+              <option value="">All cohorts</option>
+              {uniquePrograms.length > 0 && (
+                <>
+                  <option disabled>— By program —</option>
+                  {uniquePrograms.map((p) => (
+                    <option key={p.id} value={`program:${p.id}`}>
+                      Program: {p.name}
+                    </option>
+                  ))}
+                </>
+              )}
+              {uniqueMentors.length > 0 && (
+                <>
+                  <option disabled>— By mentor —</option>
+                  {uniqueMentors.map((m) => (
+                    <option key={m.id} value={`mentor:${m.id}`}>
+                      Mentor: {m.name}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
             <div className="relative">
               <input

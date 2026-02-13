@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { ScheduleRequestStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -14,7 +15,7 @@ export default async function TraineeSchedulePassPage() {
       select: { name: true, imageUrl: true },
     }),
     prisma.traineeScheduledEvent.findMany({
-      where: { traineeId: session.user.id, status: "APPROVED" },
+      where: { traineeId: session.user.id, status: ScheduleRequestStatus.APPROVED },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
       include: { mentor: { select: { name: true } } },
     }),

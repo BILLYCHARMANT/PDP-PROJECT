@@ -22,7 +22,7 @@ export async function POST(req: Request) {
       );
     }
     const type = formData.get("type") as string | null;
-    const subdir = type === "avatar" ? "avatars" : type === "course" ? "courses" : "submissions";
+    const subdir = type === "avatar" ? "avatars" : (type === "course" || type === "program") ? "courses" : "submissions";
     const ext = (path.extname(file.name) || "").toLowerCase();
     if (subdir === "submissions") {
       const allowed = [".pdf", ".doc", ".docx"];

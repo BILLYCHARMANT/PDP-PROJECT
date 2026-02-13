@@ -47,7 +47,7 @@ export function ActivityBarChart({ data }: { data: ActivityDay[] }) {
               border: `1px solid ${LIGHT_GREY}`,
               backgroundColor: "white",
             }}
-            formatter={(value: number) => [value, "Submissions"]}
+            formatter={(value: number | undefined) => [value ?? 0, "Submissions"]}
             labelFormatter={(label) => `Date: ${label}`}
           />
           <Bar
@@ -88,9 +88,9 @@ export function SubmissionDonutChart({ data }: { data: SubmissionStatusItem[] })
               border: `1px solid ${LIGHT_GREY}`,
               backgroundColor: "white",
             }}
-            formatter={(value: number, name: string) => [
-              `${value} (${total ? Math.round((value / total) * 100) : 0}%)`,
-              name,
+            formatter={(value: number | undefined, name?: string) => [
+              `${value ?? 0} (${total ? Math.round(((value ?? 0) / total) * 100) : 0}%)`,
+              name ?? "",
             ]}
           />
           <Legend

@@ -1,6 +1,7 @@
 // POST /api/feedback - Add feedback (and set submission status) - mentor/admin
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { SubmissionStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -63,16 +64,16 @@ export async function POST(req: Request) {
         where: { id: latestFeedback.id },
         data: {
           adminComment: parsed.data.adminComment || null,
-          adminApprovedAt: parsed.data.status === "APPROVED" ? new Date() : null,
+          adminApprovedAt: parsed.data.status === SubmissionStatus.APPROVED ? new Date() : null,
         },
       });
       // Update submission status if changing from PENDING_ADMIN_APPROVAL or if admin is overriding
-      const newStatus = parsed.data.status === "APPROVED" ? "APPROVED" : parsed.data.status;
+      const newStatus = parsed.data.status === SubmissionStatus.APPROVED ? SubmissionStatus.APPROVED : (parsed.data.status === "REJECTED" ? SubmissionStatus.REJECTED : SubmissionStatus.RESUBMIT_REQUESTED);
       await prisma.submission.update({
         where: { id: parsed.data.submissionId },
         data: { status: newStatus, reviewedAt: new Date() },
       });
-      if (newStatus === "APPROVED") {
+      if (newStatus === SubmissionStatus.APPROVED) {
         await revalidateProgress(submission.traineeId, submission.assignment.moduleId);
       }
       return NextResponse.json({ ok: true });
@@ -89,9 +90,13 @@ export async function POST(req: Request) {
       },
     });
     const submissionStatus =
-      parsed.data.status === "APPROVED" && session.user.role === "MENTOR"
-        ? "PENDING_ADMIN_APPROVAL"
-        : parsed.data.status;
+      parsed.data.status === SubmissionStatus.APPROVED && session.user.role === "MENTOR"
+        ? SubmissionStatus.PENDING_ADMIN_APPROVAL
+        : parsed.data.status === "APPROVED"
+          ? SubmissionStatus.APPROVED
+          : parsed.data.status === "REJECTED"
+            ? SubmissionStatus.REJECTED
+            : SubmissionStatus.RESUBMIT_REQUESTED;
     await prisma.submission.update({
       where: { id: parsed.data.submissionId },
       data: {
@@ -99,7 +104,7 @@ export async function POST(req: Request) {
         reviewedAt: new Date(),
       },
     });
-    if (submissionStatus === "APPROVED") {
+    if (submissionStatus === SubmissionStatus.APPROVED) {
       await revalidateProgress(submission.traineeId, submission.assignment.moduleId);
     }
     return NextResponse.json(feedback);

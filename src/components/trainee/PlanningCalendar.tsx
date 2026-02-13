@@ -85,6 +85,7 @@ export function PlanningCalendar({
     assignment_due: "bg-orange-500 text-white",
     lab_workshop: "bg-violet-500 text-white",
     mentor_meeting: "bg-purple-500 text-white",
+    course_schedule: "bg-teal-500 text-white",
   };
 
   const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

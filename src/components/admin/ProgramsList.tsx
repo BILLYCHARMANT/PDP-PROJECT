@@ -12,7 +12,7 @@ type Program = {
   duration: string | null;
   status: string;
   cohorts: { id: string; name: string; startDate: string | null }[];
-  modules: { id: string; title: string; order: number }[];
+  courses: { id: string; name: string; modules: { id: string; title: string; order: number }[] }[];
 };
 
 const PLACEHOLDER_IMAGE =
@@ -183,7 +183,11 @@ export function ProgramsList({ showCreateAction = true }: { showCreateAction?: b
                       Edit
                     </Link>
                     <button
-                      onClick={() => handleDelete(p.id, p.name, p.cohorts.length, p.modules.length)}
+                      onClick={() => {
+                        // Calculate total module count across all courses
+                        const moduleCount = p.courses?.reduce((sum, course) => sum + (course.modules?.length || 0), 0) || 0;
+                        handleDelete(p.id, p.name, p.cohorts.length, moduleCount);
+                      }}
                       disabled={deletingId === p.id}
                       className="flex-1 rounded-lg py-2 text-center text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{ backgroundColor: "#dc2626" }}

@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 export function ProgramForm({
   initial = {},
   programId,
+  onSuccess,
 }: {
   initial?: { name?: string; description?: string; imageUrl?: string | null; duration?: string | null };
   programId?: string;
+  onSuccess?: () => void;
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,8 +54,18 @@ export function ProgramForm({
         setLoading(false);
         return;
       }
-      router.push("/dashboard/admin/programs");
-      router.refresh();
+      // If onSuccess callback is provided, call it instead of redirecting (for modal usage)
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        // Redirect to programs management page after creating/updating
+        if (!programId) {
+          router.push("/dashboard/admin/programs-management");
+        } else {
+          router.push(`/dashboard/admin/programs-management/${programId}`);
+        }
+        router.refresh();
+      }
     } catch {
       setError("Network error");
       setLoading(false);

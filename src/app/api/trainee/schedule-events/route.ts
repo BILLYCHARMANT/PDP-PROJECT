@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "eventType must be LAB_WORKSHOP, MENTOR_MEETING, or COURSE_SCHEDULE" }, { status: 400 });
     }
 
-    if (!location || typeof location !== "string" || !LOCATIONS.includes(location)) {
+    if (!location || typeof location !== "string" || !(LOCATIONS as readonly string[]).includes(location)) {
       return NextResponse.json({ error: "location is required and must be one of the allowed locations" }, { status: 400 });
     }
 
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Module and chapter (lesson) are required for course schedule" }, { status: 400 });
       }
       const module = await prisma.module.findFirst({
-        where: { id: bodyModuleId, programId: { in: traineeProgramIds } },
+        where: { id: bodyModuleId, course: { programId: { in: traineeProgramIds } } },
         select: { id: true },
       });
       if (!module) {

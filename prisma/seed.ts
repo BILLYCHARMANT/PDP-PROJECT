@@ -67,13 +67,26 @@ async function main() {
     });
   }
 
+  let course1 = await prisma.course.findFirst({
+    where: { programId: program.id, name: { contains: program.name } },
+  });
+  if (!course1) {
+    course1 = await prisma.course.create({
+      data: {
+        programId: program.id,
+        name: `${program.name} Course`,
+        description: program.description ?? undefined,
+        status: "ACTIVE",
+      },
+    });
+  }
   let module1 = await prisma.module.findFirst({
-    where: { programId: program.id, title: "Module 1: Foundations" },
+    where: { courseId: course1.id, title: "Module 1: Foundations" },
   });
   if (!module1) {
     module1 = await prisma.module.create({
       data: {
-        programId: program.id,
+        courseId: course1.id,
         title: "Module 1: Foundations",
         description: "First module",
         order: 0,
@@ -146,9 +159,17 @@ async function main() {
         description: "Second UNIPOD PDP program. Visible when you are enrolled in a cohort for this course.",
       },
     });
-    const module2 = await prisma.module.create({
+    const course2 = await prisma.course.create({
       data: {
         programId: program2.id,
+        name: `${program2.name} Course`,
+        description: program2.description ?? undefined,
+        status: "ACTIVE",
+      },
+    });
+    const module2 = await prisma.module.create({
+      data: {
+        courseId: course2.id,
         title: "Module 1: Next steps",
         description: "Advanced module",
         order: 0,

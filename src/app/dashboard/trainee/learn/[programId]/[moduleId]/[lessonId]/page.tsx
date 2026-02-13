@@ -18,13 +18,13 @@ export default async function TraineeLessonPage({
     include: {
       module: {
         include: {
-          program: { select: { id: true, name: true } },
+          course: { include: { program: { select: { id: true, name: true } } } },
           lessons: { orderBy: { order: "asc" }, select: { id: true, order: true } },
         },
       },
     },
   });
-  if (!lesson || lesson.moduleId !== moduleId || lesson.module.programId !== programId) notFound();
+  if (!lesson || lesson.moduleId !== moduleId || lesson.module.course?.programId !== programId) notFound();
 
   const enrollment = await prisma.enrollment.findFirst({
     where: {
@@ -72,7 +72,7 @@ export default async function TraineeLessonPage({
       }}
       programId={programId}
       moduleId={moduleId}
-      programName={lesson.module.program.name}
+      programName={lesson.module.course?.program?.name ?? "Course"}
       alreadyCompleted={!!accessed}
       prevLessonId={prevLesson?.id ?? null}
       nextLessonId={nextLesson?.id ?? null}

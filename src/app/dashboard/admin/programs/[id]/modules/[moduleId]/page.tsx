@@ -15,7 +15,7 @@ export default async function ModuleDetailPage({
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "MENTOR")) redirect("/dashboard");
-  const { id: programId, moduleId } = await params;
+  const { id: courseId, moduleId } = await params;
   const module_ = await prisma.module.findUnique({
     where: { id: moduleId },
     include: {
@@ -23,7 +23,7 @@ export default async function ModuleDetailPage({
       assignments: { orderBy: { order: "asc" } },
     },
   });
-  if (!module_ || module_.programId !== programId) notFound();
+  if (!module_ || module_.courseId !== courseId) notFound();
 
   const assignmentIds = module_.assignments.map((a) => a.id);
   const submissions = assignmentIds.length
@@ -41,10 +41,10 @@ export default async function ModuleDetailPage({
     <div className="space-y-8">
       <nav className="flex items-center gap-2 text-sm text-slate-600">
         <Link
-          href={`/dashboard/admin/programs/${programId}`}
+          href={`/dashboard/admin/programs/${courseId}`}
           className="hover:text-slate-900"
         >
-          Program
+          Course
         </Link>
         <span aria-hidden>/</span>
         <span className="font-medium text-slate-800">{module_.title}</span>
@@ -55,7 +55,7 @@ export default async function ModuleDetailPage({
           Module: {module_.title}
         </h1>
         <ModuleForm
-          programId={programId}
+          courseId={courseId}
           moduleId={module_.id}
           initial={{
             title: module_.title,
@@ -75,7 +75,7 @@ export default async function ModuleDetailPage({
             Chapters
           </h2>
           <Link
-            href={`/dashboard/admin/programs/${programId}/modules/${moduleId}/lessons/new`}
+            href={`/dashboard/admin/programs/${courseId}?moduleId=${moduleId}&createChapter=1`}
             className="rounded-lg px-3 py-2 text-sm font-medium text-white"
             style={{ backgroundColor: "var(--unipod-blue)" }}
           >
@@ -83,7 +83,7 @@ export default async function ModuleDetailPage({
           </Link>
         </div>
         <LessonList
-          programId={programId}
+          programId={courseId}
           moduleId={moduleId}
           lessons={module_.lessons}
         />
@@ -94,7 +94,7 @@ export default async function ModuleDetailPage({
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-slate-800">Assignments</h2>
           <Link
-            href={`/dashboard/admin/programs/${programId}/modules/${moduleId}/assignments/new`}
+            href={`/dashboard/admin/programs/${courseId}/modules/${moduleId}/assignments/new`}
             className="rounded-lg px-3 py-2 text-sm font-medium text-white"
             style={{ backgroundColor: "var(--unipod-blue)" }}
           >
@@ -102,7 +102,7 @@ export default async function ModuleDetailPage({
           </Link>
         </div>
         <AssignmentList
-          programId={programId}
+          programId={courseId}
           moduleId={moduleId}
           assignments={module_.assignments}
         />

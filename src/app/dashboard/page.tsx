@@ -18,7 +18,8 @@ export default async function DashboardPage() {
     data = await getHomeDataByRole(role, userId, userName);
   } catch (error) {
     console.error("Dashboard error:", error);
-    redirect("/login");
+    // Show fallback dashboard instead of redirecting to login
+    data = null;
   }
 
   // Trainee with no enrollments: show empty state instead of redirecting
@@ -54,20 +55,43 @@ export default async function DashboardPage() {
     );
   }
 
-  // No data for other roles: redirect to login
-  if (!data) redirect("/login");
+  // No data for admin/mentor (e.g. error or empty): show minimal dashboard instead of redirecting
+  if (!data) {
+    const firstName = userName?.split(/\s+/)[0] ?? "User";
+    const fallbackSections: [React.ReactNode, React.ReactNode, React.ReactNode, React.ReactNode] = [
+      <ul key="s1" className="space-y-2"><li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No data.</li></ul>,
+      <ul key="s2" className="space-y-2"><li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No data.</li></ul>,
+      <ul key="s3" className="space-y-2"><li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No data.</li></ul>,
+      <ul key="s4" className="space-y-2"><li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No data.</li></ul>,
+    ];
+    return (
+      <DashboardHomeView
+        welcome={{ firstName, subtitle: "Your dashboard" }}
+        metrics={[{ label: "Programs", value: 0 }, { label: "Enrollments", value: 0 }, { label: "Trainees", value: 0 }, { label: "Submissions", value: 0 }]}
+        activityData={[]}
+        donutData={[{ name: "No data", value: 1, color: "#e5e7eb" }]}
+        sections={[
+          { title: "Upcoming cohorts", seeAllHref: "/dashboard/admin/cohorts", content: fallbackSections[0] },
+          { title: "Programs", seeAllHref: "/dashboard/admin/programs-management", content: fallbackSections[1] },
+          { title: "Recent enrollments", seeAllHref: "/dashboard/admin/cohorts", content: fallbackSections[2] },
+          { title: "Submitted assignments", seeAllHref: "/dashboard/admin/submissions/grade", content: fallbackSections[3] },
+        ]}
+      />
+    );
+  }
 
   // Trainee with data can use same layout; pendingDeliverables already in data.section4
-  if (role === "TRAINEE" && data) {
-      // Use same home layout (charts + tables) for trainee
+  if (role === "TRAINEE" && data && "pendingDeliverables" in data.section4) {
+      const section4 = data.section4 as { title: string; seeAllHref: string; pendingDeliverables: { id: string; title: string; programId: string; moduleId: string; moduleTitle: string }[] };
+      const section3T = data.section3 as { recentEnrollments: { id: string; assignment: { title: string }; submittedAt: Date; status: string }[] };
       const sections: [React.ReactNode, React.ReactNode, React.ReactNode, React.ReactNode] = [
       <ul key="s1" className="space-y-2">
         {data.section1.upcomingCohorts.length === 0 ? (
           <li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No upcoming cohorts.</li>
         ) : (
-          data.section1.upcomingCohorts.map((c: { id: string; name: string; programName: string; startDate: Date | null }) => (
+          data.section1.upcomingCohorts.map((c) => (
             <li key={c.id} className="flex items-center justify-between rounded-lg border border-[#e5e7eb] dark:border-[#374151] px-3 py-2.5 text-sm">
-              <span className="text-[#171717] dark:text-[#f9fafb]">{c.programName} – {c.name}</span>
+              <span className="text-[#171717] dark:text-[#f9fafb]">{"programName" in c ? c.programName : (c as { program?: { name: string } }).program?.name} – {c.name}</span>
               <span className="text-[#6b7280] dark:text-[#9ca3af]">{c.startDate ? new Date(c.startDate).toLocaleDateString() : "—"}</span>
             </li>
           ))
@@ -77,7 +101,7 @@ export default async function DashboardPage() {
         {data.section2.programsList.length === 0 ? (
           <li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No modules.</li>
         ) : (
-          data.section2.programsList.map((p: { id: string; name: string; status: string }) => (
+          data.section2.programsList.map((p) => (
             <li key={p.id} className="flex items-center justify-between rounded-lg border border-[#e5e7eb] dark:border-[#374151] px-3 py-2.5 text-sm">
               <span className="text-[#171717] dark:text-[#f9fafb]">{p.name}</span>
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.status === "ACTIVE" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-[var(--sidebar-bg)] dark:bg-[#374151] text-[#6b7280] dark:text-[#9ca3af]"}`}>{p.status}</span>
@@ -86,10 +110,10 @@ export default async function DashboardPage() {
         )}
       </ul>,
       <ul key="s3" className="space-y-2">
-        {data.section3.recentEnrollments.length === 0 ? (
+        {section3T.recentEnrollments.length === 0 ? (
           <li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No recent activity.</li>
         ) : (
-          data.section3.recentEnrollments.map((s: { id: string; assignment: { title: string }; submittedAt: Date; status: string }) => (
+          section3T.recentEnrollments.map((s) => (
             <li key={s.id} className="flex items-center justify-between rounded-lg border border-[#e5e7eb] dark:border-[#374151] px-3 py-2.5 text-sm">
               <span className="text-[#171717] dark:text-[#f9fafb]">{s.assignment.title}</span>
               <span className="text-[#6b7280] dark:text-[#9ca3af]">{new Date(s.submittedAt).toLocaleDateString()} · {s.status}</span>
@@ -98,10 +122,10 @@ export default async function DashboardPage() {
         )}
       </ul>,
       <ul key="s4" className="space-y-2">
-        {data.section4.pendingDeliverables.length === 0 ? (
+        {section4.pendingDeliverables.length === 0 ? (
           <li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">All caught up.</li>
         ) : (
-          data.section4.pendingDeliverables.map((d: { id: string; title: string; programId: string; moduleId: string }) => (
+          section4.pendingDeliverables.map((d) => (
             <li key={d.id} className="flex items-center justify-between rounded-lg border border-[#e5e7eb] dark:border-[#374151] px-3 py-2.5 text-sm">
               <span className="text-[#171717] dark:text-[#f9fafb]">{d.title}</span>
               <Link href={`/dashboard/trainee/learn/${d.programId}/${d.moduleId}/assignment/${d.id}`} className="text-sm font-medium" style={{ color: "var(--unipod-blue)" }}>Start</Link>
@@ -128,14 +152,16 @@ export default async function DashboardPage() {
   }
 
   // Admin and Mentor: same section shapes (upcoming cohorts, programs, recent enrollments, submitted assignments)
+  const section4Admin = "submittedAssignmentsList" in data.section4 ? (data.section4 as { submittedAssignmentsList: { id: string; title: string; count: number }[] }) : null;
+  const section3Admin = data.section3 as { recentEnrollments: Array<{ id: string; trainee: { name: string }; enrolledAt: Date }> };
   const sections: [React.ReactNode, React.ReactNode, React.ReactNode, React.ReactNode] = [
     <ul key="s1" className="space-y-2">
       {data.section1.upcomingCohorts.length === 0 ? (
         <li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No upcoming cohorts.</li>
       ) : (
-        data.section1.upcomingCohorts.map((c: { id: string; program: { name: string }; name: string; startDate: Date | null }) => (
+        data.section1.upcomingCohorts.map((c) => (
           <li key={c.id} className="flex items-center justify-between rounded-lg border border-[#e5e7eb] dark:border-[#374151] px-3 py-2.5 text-sm">
-            <span className="text-[#171717] dark:text-[#f9fafb]">{c.program.name} – {c.name}</span>
+            <span className="text-[#171717] dark:text-[#f9fafb]">{(c as { program?: { name: string } }).program?.name ?? "—"} – {c.name}</span>
             <span className="text-[#6b7280] dark:text-[#9ca3af]">{c.startDate ? new Date(c.startDate).toLocaleDateString() : "—"}</span>
           </li>
         ))
@@ -145,7 +171,7 @@ export default async function DashboardPage() {
       {data.section2.programsList.length === 0 ? (
         <li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No modules.</li>
       ) : (
-        data.section2.programsList.map((p: { id: string; name: string; status: string }) => (
+        data.section2.programsList.map((p) => (
           <li key={p.id} className="flex items-center justify-between rounded-lg border border-[#e5e7eb] dark:border-[#374151] px-3 py-2.5 text-sm">
             <span className="text-[#171717] dark:text-[#f9fafb]">{p.name}</span>
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.status === "ACTIVE" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-[var(--sidebar-bg)] dark:bg-[#374151] text-[#6b7280] dark:text-[#9ca3af]"}`}>{p.status}</span>
@@ -154,13 +180,13 @@ export default async function DashboardPage() {
       )}
     </ul>,
     <ul key="s3" className="space-y-2">
-      {data.section3.recentEnrollments.length === 0 ? (
+      {section3Admin.recentEnrollments.length === 0 ? (
         <li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No recent enrollments.</li>
       ) : (
-        data.section3.recentEnrollments.map((e: { id: string; trainee: { name: string }; enrolledAt: Date }) => (
+        section3Admin.recentEnrollments.map((e) => (
           <li key={e.id} className="flex items-center justify-between rounded-lg border border-[#e5e7eb] dark:border-[#374151] px-3 py-2.5 text-sm">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-[var(--unipod-blue-light)] dark:bg-[#374151] flex items-center justify-center text-xs font-semibold" style={{ color: "var(--unipod-blue)" }}>{e.trainee.name.slice(0, 2).toUpperCase()}</div>
+              <div className="h-8 w-8 rounded-full bg-[var(--unipod-blue-light)] dark:bg-[#374151] flex items-center justify-center text-xs font-semibold" style={{ color: "var(--unipod-blue)" }}>{(e.trainee.name ?? "").slice(0, 2).toUpperCase()}</div>
               <span className="text-[#171717] dark:text-[#f9fafb]">{e.trainee.name}</span>
             </div>
             <span className="text-[#6b7280] dark:text-[#9ca3af]">{new Date(e.enrolledAt).toLocaleDateString()}</span>
@@ -169,10 +195,10 @@ export default async function DashboardPage() {
       )}
     </ul>,
     <ul key="s4" className="space-y-2">
-      {data.section4.submittedAssignmentsList.length === 0 ? (
+      {!section4Admin || section4Admin.submittedAssignmentsList.length === 0 ? (
         <li className="text-sm text-[#6b7280] dark:text-[#9ca3af] py-2">No submitted assignments.</li>
       ) : (
-        data.section4.submittedAssignmentsList.map((a: { id: string; title: string; count: number }) => (
+        section4Admin.submittedAssignmentsList.map((a) => (
           <li key={a.id} className="flex items-center justify-between rounded-lg border border-[#e5e7eb] dark:border-[#374151] px-3 py-2.5 text-sm">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-full bg-[var(--unipod-blue-light)] dark:bg-[#374151] flex items-center justify-center text-xs font-semibold" style={{ color: "var(--unipod-blue)" }}>{a.title.slice(0, 1).toUpperCase()}</div>

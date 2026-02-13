@@ -17,12 +17,12 @@ export default async function TraineeModulePage({
   const module_ = await prisma.module.findUnique({
     where: { id: moduleId },
     include: {
-      program: { select: { id: true, name: true } },
+      course: { include: { program: { select: { id: true, name: true } } } },
       lessons: { orderBy: { order: "asc" } },
       assignments: { orderBy: { order: "asc" } },
     },
   });
-  if (!module_ || module_.programId !== programId) notFound();
+  if (!module_ || module_.course?.programId !== programId) notFound();
 
   const enrollment = await prisma.enrollment.findFirst({
     where: {

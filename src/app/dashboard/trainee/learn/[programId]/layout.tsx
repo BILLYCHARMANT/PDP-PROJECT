@@ -26,11 +26,15 @@ export default async function LearnProgramLayout({
         include: {
           program: {
             include: {
-              modules: {
-                orderBy: { order: "asc" },
+              courses: {
                 include: {
-                  lessons: { orderBy: { order: "asc" } },
-                  assignments: { orderBy: { order: "asc" } },
+                  modules: {
+                    orderBy: { order: "asc" },
+                    include: {
+                      lessons: { orderBy: { order: "asc" } },
+                      assignments: { orderBy: { order: "asc" } },
+                    },
+                  },
                 },
               },
             },
@@ -42,8 +46,9 @@ export default async function LearnProgramLayout({
   if (!enrollment) notFound();
 
   const program = enrollment.cohort.program;
-  const modules = program.modules;
-  const allLessonIds = modules.flatMap((m) => m.lessons.map((l) => l.id));
+  if (!program) notFound();
+  const modules = program.courses.flatMap((c) => c.modules);
+  const allLessonIds = modules.flatMap((m: { lessons: { id: string }[] }) => m.lessons.map((l: { id: string }) => l.id));
 
   const accessed =
     allLessonIds.length > 0
@@ -64,13 +69,17 @@ export default async function LearnProgramLayout({
     // ignore
   }
   const overallPercent = progress?.overallPercent ?? 0;
-  const moduleStatusById = new Map(progress?.modules.map((m) => [m.moduleId, m.status]) ?? []);
+  const moduleStatusById = new Map(progress?.modules.map((m: { moduleId: string; status: string }) => [m.moduleId, m.status]) ?? []);
+
+  type Mod = (typeof modules)[number];
+  type Lesson = Mod["lessons"][number];
+  type Assignment = Mod["assignments"][number];
 
   const outline = {
     programName: program.name,
     programId,
     overallPercent,
-    modules: modules.map((m, index) => {
+    modules: modules.map((m: Mod, index: number) => {
       const prevCompleted =
         index === 0 || moduleStatusById.get(modules[index - 1]!.id) === "COMPLETED";
       return {
@@ -79,12 +88,12 @@ export default async function LearnProgramLayout({
         description: m.description,
         order: m.order,
         unlocked: prevCompleted,
-        lessons: m.lessons.map((l) => ({
+        lessons: m.lessons.map((l: Lesson) => ({
           id: l.id,
           title: l.title,
           order: l.order,
         })),
-        assignments: m.assignments.map((a) => ({
+        assignments: m.assignments.map((a: Assignment) => ({
           id: a.id,
           title: a.title,
           order: a.order,

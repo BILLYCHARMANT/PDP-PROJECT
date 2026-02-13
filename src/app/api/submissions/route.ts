@@ -2,6 +2,7 @@
 // POST /api/submissions - Create submission (trainee)
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { SubmissionStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
     const statusFilter = searchParams.get("status");
     const where: Record<string, unknown> = {};
     if (assignmentId) where.assignmentId = assignmentId;
-    if (statusFilter) where.status = statusFilter;
+    if (statusFilter && Object.values(SubmissionStatus).includes(statusFilter as SubmissionStatus)) where.status = statusFilter as SubmissionStatus;
     if (session.user.role === "TRAINEE") {
       where.traineeId = session.user.id;
     } else if (traineeId) {
@@ -50,7 +51,7 @@ export async function GET(req: Request) {
               select: {
                 id: true,
                 title: true,
-                programId: true,
+                course: { select: { programId: true } },
               },
             },
           },
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
         content: parsed.data.content,
         fileUrl: parsed.data.fileUrl,
         externalLink: parsed.data.externalLink,
-        status: "PENDING",
+        status: SubmissionStatus.PENDING,
       },
       include: {
         assignment: { select: { id: true, title: true } },

@@ -450,7 +450,7 @@ export function AdminUsersSection() {
                             <Pie data={submissionDonutData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={2} dataKey="value" nameKey="name">
                               {submissionDonutData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                             </Pie>
-                            <Tooltip formatter={(v: number) => [v, ""]} />
+                            <Tooltip formatter={(v: number | undefined) => [v ?? 0, ""]} />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>

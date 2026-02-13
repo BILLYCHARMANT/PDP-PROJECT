@@ -2,6 +2,7 @@
 // PATCH /api/submissions/[id] - Update submission (trainee, only if RESUBMIT_REQUESTED)
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { SubmissionStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -22,10 +23,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { id } = await params;
+    // Module has course relation (Program → Course → Module); include types may not reflect it in all envs
     const submission = await prisma.submission.findUnique({
       where: { id },
       include: {
-        assignment: { include: { module: { select: { id: true, title: true, programId: true } } } },
+        assignment: { include: { module: { select: { id: true, title: true, courseId: true } } } },
         trainee: { select: { id: true, name: true, email: true } },
         feedback: {
           include: {
@@ -68,7 +70,7 @@ export async function PATCH(
     if (!existing || existing.traineeId !== session.user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    if (existing.status !== "RESUBMIT_REQUESTED") {
+    if (existing.status !== SubmissionStatus.RESUBMIT_REQUESTED) {
       return NextResponse.json(
         { error: "Submission cannot be updated in current status" },
         { status: 400 }
@@ -84,7 +86,7 @@ export async function PATCH(
     }
     const submission = await prisma.submission.update({
       where: { id },
-      data: { ...parsed.data, status: "PENDING" },
+      data: { ...parsed.data, status: SubmissionStatus.PENDING },
       include: { assignment: { select: { id: true, title: true } } },
     });
     return NextResponse.json(submission);

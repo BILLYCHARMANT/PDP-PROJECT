@@ -2,6 +2,12 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Role } from "@prisma/client";
+import {
+  ProgramStatus,
+  SubmissionStatus,
+  ScheduleRequestStatus,
+  ScheduleEventType,
+} from "@prisma/client";
 
 const DEFAULT_DONUT = [{ name: "No submissions", value: 1, color: "#e5e7eb" }];
 
@@ -37,11 +43,11 @@ export async function getAdminHomeData(userId: string, userName: string | null) 
     prisma.program.count(),
     prisma.enrollment.count(),
     prisma.user.count({ where: { role: "TRAINEE" } }),
-    prisma.submission.count({ where: { status: "PENDING" } }),
-    prisma.traineeScheduledEvent.count({ where: { status: "PENDING", eventType: "LAB_WORKSHOP" } }),
-    prisma.traineeScheduledEvent.count({ where: { status: "PENDING", eventType: "COURSE_SCHEDULE" } }),
-    prisma.traineeScheduledEvent.count({ where: { status: "PENDING", eventType: "MENTOR_MEETING" } }),
-    prisma.program.count({ where: { status: "INACTIVE" } }),
+    prisma.submission.count({ where: { status: SubmissionStatus.PENDING } }),
+    prisma.traineeScheduledEvent.count({ where: { status: ScheduleRequestStatus.PENDING, eventType: ScheduleEventType.LAB_WORKSHOP } }),
+    prisma.traineeScheduledEvent.count({ where: { status: ScheduleRequestStatus.PENDING, eventType: ScheduleEventType.COURSE_SCHEDULE } }),
+    prisma.traineeScheduledEvent.count({ where: { status: ScheduleRequestStatus.PENDING, eventType: ScheduleEventType.MENTOR_MEETING } }),
+    prisma.course.count({ where: { status: ProgramStatus.PENDING } }),
   ]);
 
   const scheduleHref = "/dashboard/admin/schedule-requests";
@@ -69,10 +75,10 @@ export async function getAdminHomeData(userId: string, userName: string | null) 
   });
 
   const [pending, approved, rejected, resubmit] = await Promise.all([
-    prisma.submission.count({ where: { status: "PENDING" } }),
-    prisma.submission.count({ where: { status: "APPROVED" } }),
-    prisma.submission.count({ where: { status: "REJECTED" } }),
-    prisma.submission.count({ where: { status: "RESUBMIT_REQUESTED" } }),
+    prisma.submission.count({ where: { status: SubmissionStatus.PENDING } }),
+    prisma.submission.count({ where: { status: SubmissionStatus.APPROVED } }),
+    prisma.submission.count({ where: { status: SubmissionStatus.REJECTED } }),
+    prisma.submission.count({ where: { status: SubmissionStatus.RESUBMIT_REQUESTED } }),
   ]);
   const donutData = [
     { name: "Pending", value: pending, color: "#0066cc" },
@@ -148,7 +154,7 @@ export async function getMentorHomeData(userId: string, userName: string | null)
     await prisma.cohort.findMany({ where: cohortWhere, select: { id: true } })
   ).map((c) => c.id);
   const programIds = cohortIds.length
-    ? [...new Set((await prisma.cohort.findMany({ where: { id: { in: cohortIds } }, select: { programId: true } })).map((c) => c.programId))]
+    ? [...new Set((await prisma.cohort.findMany({ where: { id: { in: cohortIds } }, select: { programId: true } })).map((c) => c.programId).filter((id): id is string => id != null))]
     : [];
   const traineeIdsInCohorts =
     cohortIds.length > 0
@@ -156,7 +162,7 @@ export async function getMentorHomeData(userId: string, userName: string | null)
       : [];
   const assignmentIdsInPrograms =
     programIds.length > 0
-      ? (await prisma.assignment.findMany({ where: { module: { programId: { in: programIds } } }, select: { id: true } })).map((a) => a.id)
+      ? (await prisma.assignment.findMany({ where: { module: { course: { programId: { in: programIds } } } }, select: { id: true } })).map((a) => a.id)
       : [];
   // Build submission where clause - avoid IN (NULL) by only using 'in' when array has items
   const submissionWhereBase = traineeIdsInCohorts.length > 0 
@@ -167,8 +173,8 @@ export async function getMentorHomeData(userId: string, userName: string | null)
     programIds.length > 0 ? prisma.program.count({ where: { id: { in: programIds } } }) : 0,
     cohortIds.length > 0 ? prisma.enrollment.count({ where: { cohortId: { in: cohortIds } } }) : 0,
     traineeIdsInCohorts.length > 0 ? prisma.user.count({ where: { id: { in: [...new Set(traineeIdsInCohorts)] }, role: "TRAINEE" } }) : 0,
-    traineeIdsInCohorts.length > 0 ? prisma.submission.count({ where: { ...submissionWhereBase, status: "PENDING" } }) : 0,
-    prisma.traineeScheduledEvent.count({ where: { mentorId: userId, eventType: "MENTOR_MEETING", status: "PENDING" } }),
+    traineeIdsInCohorts.length > 0 ? prisma.submission.count({ where: { ...submissionWhereBase, status: SubmissionStatus.PENDING } }) : 0,
+    prisma.traineeScheduledEvent.count({ where: { mentorId: userId, eventType: ScheduleEventType.MENTOR_MEETING, status: ScheduleRequestStatus.PENDING } }),
   ]);
 
   const days = buildActivityDays(submissionWhereBase);
@@ -191,10 +197,10 @@ export async function getMentorHomeData(userId: string, userName: string | null)
 
   const [pending, approved, rejected, resubmit] = traineeIdsInCohorts.length > 0
     ? await Promise.all([
-        prisma.submission.count({ where: { ...submissionWhereBase, status: "PENDING" } }),
-        prisma.submission.count({ where: { ...submissionWhereBase, status: "APPROVED" } }),
-        prisma.submission.count({ where: { ...submissionWhereBase, status: "REJECTED" } }),
-        prisma.submission.count({ where: { ...submissionWhereBase, status: "RESUBMIT_REQUESTED" } }),
+        prisma.submission.count({ where: { ...submissionWhereBase, status: SubmissionStatus.PENDING } }),
+        prisma.submission.count({ where: { ...submissionWhereBase, status: SubmissionStatus.APPROVED } }),
+        prisma.submission.count({ where: { ...submissionWhereBase, status: SubmissionStatus.REJECTED } }),
+        prisma.submission.count({ where: { ...submissionWhereBase, status: SubmissionStatus.RESUBMIT_REQUESTED } }),
       ])
     : [0, 0, 0, 0];
   const donutData = [
@@ -218,7 +224,7 @@ export async function getMentorHomeData(userId: string, userName: string | null)
     take: 5,
   });
   const programsList = await prisma.program.findMany({
-    where: programIds.length ? { id: { in: programIds } } : {},
+    where: programIds.length ? { id: { in: programIds } } : undefined,
     select: { id: true, name: true, status: true },
     orderBy: { name: "asc" },
     take: 5,
@@ -286,9 +292,13 @@ export async function getTraineeHomeData(userId: string, userName: string | null
         include: {
           program: {
             include: {
-              modules: {
-                orderBy: { order: "asc" },
-                include: { assignments: { orderBy: { order: "asc" } } },
+              courses: {
+                include: {
+                  modules: {
+                    orderBy: { order: "asc" },
+                    include: { assignments: { orderBy: { order: "asc" } } },
+                  },
+                },
               },
             },
           },
@@ -300,16 +310,18 @@ export async function getTraineeHomeData(userId: string, userName: string | null
     return null;
   }
   const program = enrollments[0].cohort.program;
-  const allAssignmentIds = program.modules.flatMap((m) => m.assignments.map((a) => a.id));
+  if (!program) return null;
+  const allModules = program.courses.flatMap((c) => c.modules);
+  const allAssignmentIds = allModules.flatMap((m) => m.assignments.map((a) => a.id));
   const approvedSubmissions = allAssignmentIds.length
     ? await prisma.submission.findMany({
-        where: { traineeId: userId, assignmentId: { in: allAssignmentIds }, status: "APPROVED" },
+        where: { traineeId: userId, assignmentId: { in: allAssignmentIds }, status: SubmissionStatus.APPROVED },
         select: { assignmentId: true },
       })
     : [];
   const approvedSet = new Set(approvedSubmissions.map((s) => s.assignmentId));
   const programId = program.id;
-  const pendingDeliverables = program.modules.flatMap((m) =>
+  const pendingDeliverables = allModules.flatMap((m) =>
     m.assignments
       .filter((a) => !approvedSet.has(a.id))
       .map((a) => ({ id: a.id, title: a.title, programId, moduleId: m.id, moduleTitle: m.title }))
@@ -317,10 +329,10 @@ export async function getTraineeHomeData(userId: string, userName: string | null
 
   const submissionWhere = { traineeId: userId };
   const [moduleCount, enrollmentCount, pendingCount, approvedCount] = await Promise.all([
-    Promise.resolve(program.modules.length),
+    Promise.resolve(allModules.length),
     Promise.resolve(enrollments.length),
     Promise.resolve(pendingDeliverables.length),
-    prisma.submission.count({ where: { traineeId: userId, status: "APPROVED" } }),
+    prisma.submission.count({ where: { traineeId: userId, status: SubmissionStatus.APPROVED } }),
   ]);
 
   const days = buildActivityDays(submissionWhere);
@@ -340,10 +352,10 @@ export async function getTraineeHomeData(userId: string, userName: string | null
   });
 
   const [pending, approved, rejected, resubmit] = await Promise.all([
-    prisma.submission.count({ where: { traineeId: userId, status: "PENDING" } }),
-    prisma.submission.count({ where: { traineeId: userId, status: "APPROVED" } }),
-    prisma.submission.count({ where: { traineeId: userId, status: "REJECTED" } }),
-    prisma.submission.count({ where: { traineeId: userId, status: "RESUBMIT_REQUESTED" } }),
+    prisma.submission.count({ where: { traineeId: userId, status: SubmissionStatus.PENDING } }),
+    prisma.submission.count({ where: { traineeId: userId, status: SubmissionStatus.APPROVED } }),
+    prisma.submission.count({ where: { traineeId: userId, status: SubmissionStatus.REJECTED } }),
+    prisma.submission.count({ where: { traineeId: userId, status: SubmissionStatus.RESUBMIT_REQUESTED } }),
   ]);
   const donutData = [
     { name: "Pending", value: pending, color: "#0066cc" },
@@ -362,7 +374,7 @@ export async function getTraineeHomeData(userId: string, userName: string | null
   const upcomingCohorts = enrollments.map((e) => ({
     id: e.id,
     name: e.cohort.name,
-    programName: e.cohort.program.name,
+    programName: e.cohort.program?.name ?? "Course",
     startDate: e.cohort.startDate,
   }));
   const programsList = [{ id: program.id, name: program.name, status: program.status }];

@@ -8,6 +8,8 @@ export function LessonForm({
   programId,
   initial = {},
   lessonId,
+  onSuccess,
+  onCancel,
 }: {
   moduleId: string;
   programId: string;
@@ -19,6 +21,8 @@ export function LessonForm({
     order?: number;
   };
   lessonId?: string;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(initial.title ?? "");
@@ -48,6 +52,12 @@ export function LessonForm({
       if (!res.ok) {
         setError(JSON.stringify(data.error) || "Failed");
         setLoading(false);
+        return;
+      }
+      setLoading(false);
+      if (onSuccess) {
+        onSuccess();
+        router.refresh();
         return;
       }
       router.push(`/dashboard/admin/programs/${programId}/modules/${moduleId}`);
@@ -172,7 +182,7 @@ export function LessonForm({
         </button>
         <button
           type="button"
-          onClick={() => router.push(`/dashboard/admin/programs/${programId}/modules/${moduleId}`)}
+          onClick={onCancel ?? (() => router.push(`/dashboard/admin/programs/${programId}/modules/${moduleId}`))}
           className="rounded-xl border-2 border-[#e5e7eb] px-5 py-2.5 text-sm font-medium text-[#374151] hover:bg-[var(--sidebar-bg)]"
         >
           Cancel

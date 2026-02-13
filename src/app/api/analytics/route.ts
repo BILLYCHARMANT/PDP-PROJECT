@@ -14,13 +14,13 @@ export async function GET(req: Request) {
     const programId = searchParams.get("programId");
     const cohortId = searchParams.get("cohortId");
 
-    const programFilter = programId ? { programId } : {};
-    const cohortFilter = cohortId ? { cohortId } : {};
+    const programWhere = programId ? { id: programId } : {};
+    const cohortWhereForProgram = programId ? { programId } : {};
 
     const [programs, cohorts, enrollments, progress, certificates] =
       await Promise.all([
         prisma.program.findMany({
-          where: programFilter,
+          where: programWhere,
           select: { id: true, name: true },
         }),
         cohortId
@@ -29,16 +29,16 @@ export async function GET(req: Request) {
               include: { program: { select: { name: true } } },
             })
           : prisma.cohort.findMany({
-              where: { program: programFilter },
+              where: cohortWhereForProgram,
               include: { program: { select: { name: true } } },
             }),
         prisma.enrollment.findMany({
-          where: cohortFilter,
+          where: cohortId ? { cohortId } : {},
           select: { traineeId: true, cohortId: true },
         }),
         prisma.progress.findMany({
           where: {
-            module: programId ? { programId } : {},
+            module: programId ? { course: { programId } } : {},
           },
           select: {
             traineeId: true,

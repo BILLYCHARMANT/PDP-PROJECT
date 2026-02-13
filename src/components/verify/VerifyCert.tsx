@@ -28,12 +28,12 @@ export function VerifyCert() {
   return (
     <div className="rounded-lg bg-green-50 p-4 text-green-800 space-y-1">
       <p className="font-semibold">Valid certificate</p>
-      <p><strong>{result.traineeName as string}</strong></p>
-      <p>{result.programName as string}</p>
-      {result.issuedAt && (
-        <p className="text-sm">Issued: {new Date(result.issuedAt as string).toLocaleDateString()}</p>
-      )}
-      <p className="text-xs text-slate-500">ID: {result.certificateId as string}</p>
+      <p><strong>{String(result.traineeName ?? "")}</strong></p>
+      <p>{String(result.programName ?? "")}</p>
+      {result.issuedAt != null ? (
+        <p className="text-sm">Issued: {new Date(String(result.issuedAt)).toLocaleDateString()}</p>
+      ) : null}
+      <p className="text-xs text-slate-500">ID: {String(result.certificateId ?? "")}</p>
     </div>
   );
 }

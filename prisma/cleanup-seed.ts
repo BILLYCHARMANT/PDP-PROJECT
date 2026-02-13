@@ -41,14 +41,15 @@ async function cleanup() {
   for (const programName of seedProgramNames) {
     const program = await prisma.program.findFirst({ where: { name: programName } });
     if (program) {
-      // Get all modules for this program
-      const modules = await prisma.module.findMany({ where: { programId: program.id } });
+      const courses = await prisma.course.findMany({
+        where: { programId: program.id },
+        include: { modules: true },
+      });
+      const modules = courses.flatMap((c) => c.modules);
       
       for (const module of modules) {
-        // Delete lessons
+        await prisma.traineeScheduledEvent.deleteMany({ where: { moduleId: module.id } });
         await prisma.lesson.deleteMany({ where: { moduleId: module.id } });
-        
-        // Delete assignments and related data
         const assignments = await prisma.assignment.findMany({ where: { moduleId: module.id } });
         for (const assignment of assignments) {
           // Delete submissions and feedback for this assignment
@@ -75,12 +76,10 @@ async function cleanup() {
       const cohorts = await prisma.cohort.findMany({ where: { programId: program.id } });
       for (const cohort of cohorts) {
         await prisma.enrollment.deleteMany({ where: { cohortId: cohort.id } });
-        await prisma.traineeScheduledEvent.deleteMany({ where: { cohortId: cohort.id } });
       }
       await prisma.cohort.deleteMany({ where: { programId: program.id } });
-      
-      // Delete modules
-      await prisma.module.deleteMany({ where: { programId: program.id } });
+      await prisma.module.deleteMany({ where: { courseId: { in: courses.map((c) => c.id) } } });
+      await prisma.course.deleteMany({ where: { programId: program.id } });
       
       // Delete the program
       await prisma.program.delete({ where: { id: program.id } });

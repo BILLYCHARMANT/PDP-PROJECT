@@ -1,4 +1,4 @@
-// GET /api/modules?programId= - List modules (optionally by program)
+// GET /api/modules?courseId= - List modules (optionally by course)
 // POST /api/modules - Create module (admin)
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const createSchema = z.object({
-  programId: z.string().min(1),
+  courseId: z.string().min(1),
   title: z.string().min(1),
   description: z.string().optional(),
   inspiringQuotes: z.string().optional(),
@@ -23,13 +23,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { searchParams } = new URL(req.url);
-    const programId = searchParams.get("programId");
-    const where = programId ? { programId } : {};
+    const courseId = searchParams.get("courseId");
+    const where = courseId ? { courseId } : {};
     const modules = await prisma.module.findMany({
       where,
       orderBy: { order: "asc" },
       include: {
-        program: { select: { id: true, name: true } },
+        course: { select: { id: true, name: true } },
         lessons: { orderBy: { order: "asc" }, select: { id: true, title: true } },
         assignments: {
           orderBy: { order: "asc" },
@@ -69,33 +69,36 @@ export async function POST(req: Request) {
     };
     const module_ = await prisma.module.create({
       data,
-      include: { program: { select: { id: true, name: true } } },
+      include: { course: { select: { id: true, name: true } } },
     });
 
-    // Assign module to all eligible students: enrollees in this program's cohorts (active trainees)
-    const cohorts = await prisma.cohort.findMany({
-      where: { programId: parsed.data.programId },
-      select: { id: true },
+    // Assign module to all eligible students: enrollees in cohorts assigned to the course's program (active trainees)
+    const course = await prisma.course.findUnique({
+      where: { id: parsed.data.courseId },
+      include: { program: { include: { cohorts: { select: { id: true } } } } },
     });
-    const cohortIds = cohorts.map((c) => c.id);
-    const enrollments = await prisma.enrollment.findMany({
-      where: { cohortId: { in: cohortIds } },
-      include: { trainee: { select: { id: true, active: true } } },
-    });
-    for (const en of enrollments) {
-      if (!en.trainee.active) continue;
-      await prisma.progress.upsert({
-        where: {
-          traineeId_moduleId: { traineeId: en.traineeId, moduleId: module_.id },
-        },
-        create: {
-          traineeId: en.traineeId,
-          moduleId: module_.id,
-          status: "ACTIVE",
-          percentComplete: 0,
-        },
-        update: {},
+    
+    if (course?.program) {
+      const cohortIds = course.program.cohorts.map((c) => c.id);
+      const enrollments = await prisma.enrollment.findMany({
+        where: { cohortId: { in: cohortIds } },
+        include: { trainee: { select: { id: true, active: true } } },
       });
+      for (const en of enrollments) {
+        if (!en.trainee.active) continue;
+        await prisma.progress.upsert({
+          where: {
+            traineeId_moduleId: { traineeId: en.traineeId, moduleId: module_.id },
+          },
+          create: {
+            traineeId: en.traineeId,
+            moduleId: module_.id,
+            status: "ACTIVE",
+            percentComplete: 0,
+          },
+          update: {},
+        });
+      }
     }
 
     return NextResponse.json(module_);

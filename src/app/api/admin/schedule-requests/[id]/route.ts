@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { ScheduleRequestStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -29,7 +30,7 @@ export async function PATCH(
     }
     await prisma.traineeScheduledEvent.update({
       where: { id },
-      data: { status },
+      data: { status: status === "APPROVED" ? ScheduleRequestStatus.APPROVED : ScheduleRequestStatus.REJECTED },
     });
     return NextResponse.json({ success: true, status });
   } catch (e) {

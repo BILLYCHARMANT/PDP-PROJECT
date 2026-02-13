@@ -24,8 +24,20 @@ export async function GET(
   }
   const buffer = fs.readFileSync(filePath);
   const ext = path.extname(filename).toLowerCase();
-  const contentType =
-    ext === ".png" ? "image/png" : ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : ext === ".gif" ? "image/gif" : ext === ".webp" ? "image/webp" : "image/png";
+  const imageTypes: Record<string, string> = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+  };
+  const videoTypes: Record<string, string> = {
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".ogg": "video/ogg",
+    ".mov": "video/quicktime",
+  };
+  const contentType = imageTypes[ext] ?? videoTypes[ext] ?? "application/octet-stream";
   return new NextResponse(buffer, {
     headers: {
       "Content-Type": contentType,

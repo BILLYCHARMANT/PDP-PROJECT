@@ -28,26 +28,14 @@ export default async function TraineeLearnPage() {
   // Only fetch full enrollment data if enrollments exist
   const enrollments = await prisma.enrollment.findMany({
     where: { traineeId: session.user.id },
-    include: {
-      cohort: {
-        include: {
-          program: {
-            include: {
-              modules: { select: { id: true } },
-            },
-          },
-        },
-      },
-    },
+    include: { cohort: { select: { programId: true } } },
   });
 
-  // Unique programs (courses) the trainee has access to via their enrollments
-  const programIds = [...new Set(enrollments.map((e) => e.cohort.programId))];
-  
-  // Query programs - we know programIds is not empty because enrollmentCount > 0
+  const programIds = [...new Set(enrollments.map((e) => e.cohort.programId).filter((id): id is string => id != null))];
+
   const programs = await prisma.program.findMany({
     where: { id: { in: programIds } },
-    include: { modules: { select: { id: true } } },
+    include: { courses: { include: { modules: { select: { id: true } } } } },
     orderBy: { name: "asc" },
   });
 
@@ -57,7 +45,7 @@ export default async function TraineeLearnPage() {
     description: p.description ?? null,
     imageUrl: p.imageUrl ?? null,
     duration: p.duration ?? null,
-    moduleCount: p.modules.length,
+    moduleCount: p.courses.reduce((sum, c) => sum + c.modules.length, 0),
   }));
 
   return (

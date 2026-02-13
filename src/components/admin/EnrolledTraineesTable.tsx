@@ -167,8 +167,8 @@ export function EnrolledTraineesTable({
     return sortOrder === "asc" ? "↑" : "↓";
   }
 
-  function formatDate(date: Date | null) {
-    if (!date) return "—";
+  function formatDate(date: Date | string | null) {
+    if (date == null) return "—";
     return new Date(date).toLocaleDateString("en-GB", {
       day: "numeric",
       month: "short",
@@ -176,8 +176,8 @@ export function EnrolledTraineesTable({
     });
   }
 
-  function formatDateTime(date: Date | null) {
-    if (!date) return "—";
+  function formatDateTime(date: Date | string | null) {
+    if (date == null) return "—";
     return new Date(date).toLocaleString("en-GB", {
       day: "numeric",
       month: "short",

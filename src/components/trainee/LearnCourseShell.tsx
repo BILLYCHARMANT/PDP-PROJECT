@@ -10,6 +10,7 @@ type OutlineModule = {
   order: number;
   lessons: { id: string; title: string; order: number }[];
   assignments: { id: string; title: string; order: number }[];
+  unlocked?: boolean;
 };
 
 type Outline = {

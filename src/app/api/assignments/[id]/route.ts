@@ -27,7 +27,7 @@ export async function GET(
     const assignment = await prisma.assignment.findUnique({
       where: { id },
       include: {
-        module: { select: { id: true, title: true, programId: true } },
+        module: { select: { id: true, title: true, course: { select: { programId: true } } } },
         submissions:
           session.user.role === "TRAINEE"
             ? { where: { traineeId: session.user.id }, include: { feedback: true } }

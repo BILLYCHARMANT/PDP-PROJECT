@@ -24,11 +24,15 @@ export default async function TraineeProgramLearnPage({
         include: {
           program: {
             include: {
-              modules: {
-                orderBy: { order: "asc" },
+              courses: {
                 include: {
-                  lessons: { orderBy: { order: "asc" }, select: { id: true } },
-                  assignments: { select: { id: true } },
+                  modules: {
+                    orderBy: { order: "asc" },
+                    include: {
+                      lessons: { orderBy: { order: "asc" }, select: { id: true } },
+                      assignments: { select: { id: true } },
+                    },
+                  },
                 },
               },
             },
@@ -40,7 +44,9 @@ export default async function TraineeProgramLearnPage({
   if (!enrollment) notFound();
 
   const program = enrollment.cohort.program;
-  const allLessonIds = program.modules.flatMap((m) => m.lessons.map((l) => l.id));
+  if (!program) notFound();
+  const allModules = program.courses.flatMap((c) => c.modules);
+  const allLessonIds = allModules.flatMap((m) => m.lessons.map((l) => l.id));
 
   const [accessed, progress] = await Promise.all([
     allLessonIds.length > 0
@@ -59,10 +65,10 @@ export default async function TraineeProgramLearnPage({
     progress?.modules.map((m) => [m.moduleId, m.status]) ?? []
   );
 
-  const modules = program.modules.map((m, index) => {
+  const modules = allModules.map((m, index) => {
     const prevCompleted =
       index === 0 ||
-      moduleStatusById.get(program.modules[index - 1]!.id) === "COMPLETED";
+      moduleStatusById.get(allModules[index - 1]!.id) === "COMPLETED";
     return {
       id: m.id,
       title: m.title,

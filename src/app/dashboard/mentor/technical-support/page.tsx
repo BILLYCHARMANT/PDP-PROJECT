@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { ScheduleEventType, ScheduleRequestStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -17,9 +18,9 @@ export default async function MentorTechnicalSupportPage() {
     },
   });
 
-  const pending = requests.filter((r) => r.status === "PENDING");
-  const approved = requests.filter((r) => r.status === "APPROVED");
-  const rejected = requests.filter((r) => r.status === "REJECTED");
+  const pending = requests.filter((r) => r.status === ScheduleRequestStatus.PENDING);
+  const approved = requests.filter((r) => r.status === ScheduleRequestStatus.APPROVED);
+  const rejected = requests.filter((r) => r.status === ScheduleRequestStatus.REJECTED);
 
   function formatDate(d: Date) {
     return new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });

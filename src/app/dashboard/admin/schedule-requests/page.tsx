@@ -1,8 +1,15 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { SubmissionStatus, ScheduleRequestStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { AdminScheduleApprovalsContent } from "@/components/admin/AdminScheduleApprovalsContent";
+
+// Hierarchy: Program → Course → Module → Chapter (Lesson in DB)
+/** Module with course and program included */
+type ModuleWithCourse = { id: string; title: string; startDate: Date | null; endDate: Date | null; course: { id: string; programId: string | null; program: { id: string; name: string } | null } | null };
+/** Assignment with module and course included (module belongs to course, course to program) */
+type AssignmentWithModule = { id: string; moduleId: string; dueDate: Date | null; title: string; module: { id: string; title: string; course: { id: string; programId: string | null; program: { id: string; name: string } | null } | null } };
 
 type ScheduleItemType =
   | "course_start"
@@ -34,14 +41,21 @@ export default async function AdminScheduleRequestsPage() {
       where: { programId: { not: null } },
       include: { program: { select: { id: true, name: true } } },
     }),
+    // Module.course exists in schema; cast args so TS accepts include and result type
     prisma.module.findMany({
-      include: { program: { select: { id: true, name: true } } },
-    }),
+      include: {
+        course: { include: { program: { select: { id: true, name: true } } } },
+      },
+    } as Parameters<typeof prisma.module.findMany>[0]) as unknown as Promise<ModuleWithCourse[]>,
     prisma.assignment.findMany({
       include: {
-        module: { include: { program: { select: { id: true, name: true } } } },
+        module: {
+          include: {
+            course: { include: { program: { select: { id: true, name: true } } } },
+          },
+        },
       },
-    }),
+    } as Parameters<typeof prisma.assignment.findMany>[0]) as unknown as Promise<AssignmentWithModule[]>,
     prisma.submission.groupBy({
       by: ["assignmentId", "status"],
       _count: true,
@@ -54,14 +68,14 @@ export default async function AdminScheduleRequestsPage() {
       },
     }),
     prisma.submission.findMany({
-      where: { status: "APPROVED" },
+      where: { status: SubmissionStatus.APPROVED },
       select: { assignmentId: true, traineeId: true },
     }),
     prisma.submission.findMany({
       select: { assignmentId: true, traineeId: true },
     }),
     prisma.traineeScheduledEvent.findMany({
-      where: { date: { gte: startOfToday, lt: endOfToday }, status: "APPROVED" },
+      where: { date: { gte: startOfToday, lt: endOfToday }, status: ScheduleRequestStatus.APPROVED },
       select: { traineeId: true },
     }),
   ]);
@@ -78,8 +92,8 @@ export default async function AdminScheduleRequestsPage() {
   for (const row of submissionCounts) {
     if (!subCountByAssignment[row.assignmentId])
       subCountByAssignment[row.assignmentId] = { pending: 0, approved: 0 };
-    if (row.status === "PENDING") subCountByAssignment[row.assignmentId].pending = row._count;
-    if (row.status === "APPROVED") subCountByAssignment[row.assignmentId].approved = row._count;
+    if (row.status === SubmissionStatus.PENDING) subCountByAssignment[row.assignmentId].pending = row._count;
+    if (row.status === SubmissionStatus.APPROVED) subCountByAssignment[row.assignmentId].approved = row._count;
   }
 
   const todayTraineeIds = new Set(todayEvents.map((e) => e.traineeId));
@@ -148,13 +162,13 @@ export default async function AdminScheduleRequestsPage() {
 
   // One course card per program for admin (always visible, with 3hr booking stats)
   const programIdsFromCohorts = [...new Set(cohorts.map((c) => c.programId).filter(Boolean))] as string[];
-  const programIdsFromModules = [...new Set(modules.map((m) => m.programId))];
+  const programIdsFromModules = [...new Set(modules.map((m) => m.course?.programId).filter(Boolean))] as string[];
   const uniqueProgramIds = [...new Set([...programIdsFromCohorts, ...programIdsFromModules])];
   const todayStr = new Date().toISOString().slice(0, 10);
   for (const programId of uniqueProgramIds) {
     const programName =
       cohorts.find((c) => c.programId === programId)?.program?.name ??
-      modules.find((m) => m.programId === programId)?.program?.name ??
+      modules.find((m) => m.course?.programId === programId)?.course?.program?.name ??
       "Course";
     const enrolledTrainees = enrolledTraineesByProgram[programId] ?? [];
     const stats = programStats[programId];
@@ -225,9 +239,10 @@ export default async function AdminScheduleRequestsPage() {
   }
 
   for (const m of modules) {
-    const programId = m.programId;
-    const programName = m.program.name;
-    if (m.startDate) {
+    const programId = m.course?.programId;
+    const programName = m.course?.program?.name ?? "Course";
+    const courseId = m.course?.id;
+    if (m.startDate && programId) {
       const d = new Date(m.startDate);
       scheduleItems.push({
         id: `module-start-${m.id}`,
@@ -236,10 +251,10 @@ export default async function AdminScheduleRequestsPage() {
         label: `${programName}: ${m.title} start`,
         programName,
         moduleTitle: m.title,
-        href: `/dashboard/admin/programs/${programId}/modules/${m.id}`,
+        href: courseId ? `/dashboard/admin/programs/${courseId}/modules/${m.id}` : undefined,
       });
     }
-    if (m.endDate) {
+    if (m.endDate && programId) {
       const d = new Date(m.endDate);
       scheduleItems.push({
         id: `module-end-${m.id}`,
@@ -248,17 +263,18 @@ export default async function AdminScheduleRequestsPage() {
         label: `${programName}: ${m.title} end`,
         programName,
         moduleTitle: m.title,
-        href: `/dashboard/admin/programs/${programId}/modules/${m.id}`,
+        href: courseId ? `/dashboard/admin/programs/${courseId}/modules/${m.id}` : undefined,
       });
     }
   }
 
   for (const a of assignments) {
-    const programId = a.module.programId;
+    const programId = a.module.course?.programId ?? undefined;
     const moduleId = a.module.id;
-    const programName = a.module.program?.name;
-    const stats = programStats[programId];
-    if (a.dueDate) {
+    const programName = a.module.course?.program?.name ?? "Course";
+    const courseId = a.module.course?.id;
+    const stats = programId ? programStats[programId] : undefined;
+    if (a.dueDate && programId && courseId) {
       const d = new Date(a.dueDate);
       const dateStr = d.toISOString().slice(0, 10);
       const enrolledTraineesList = enrolledTraineesByProgram[programId] ?? [];
@@ -277,7 +293,7 @@ export default async function AdminScheduleRequestsPage() {
         label: a.title,
         programName,
         moduleTitle: subtitle,
-        href: `/dashboard/admin/programs/${programId}/modules/${moduleId}/assignments/${a.id}`,
+        href: courseId ? `/dashboard/admin/programs/${courseId}/modules/${moduleId}/assignments/${a.id}` : undefined,
         enrolledTraineesWithStatus,
         dueDateTime: d.toISOString(),
       });

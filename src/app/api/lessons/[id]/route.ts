@@ -27,7 +27,7 @@ export async function GET(
     const { id } = await params;
     const lesson = await prisma.lesson.findUnique({
       where: { id },
-      include: { module: { select: { id: true, title: true, programId: true } } },
+      include: { module: { select: { id: true, title: true, courseId: true } } },
     });
     if (!lesson) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });

@@ -25,7 +25,13 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
       include: {
         cohorts: { select: { id: true, name: true, startDate: true } },
-        modules: { select: { id: true, title: true, order: true } },
+        courses: { 
+          select: { 
+            id: true, 
+            name: true,
+            modules: { select: { id: true, title: true, order: true } }
+          } 
+        },
       },
     });
     return NextResponse.json(programs);
@@ -41,7 +47,8 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "MENTOR")) {
+    // Only admin can create programs
+    if (!session?.user || session.user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const body = await req.json();

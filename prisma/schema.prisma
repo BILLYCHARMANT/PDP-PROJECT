@@ -1,6 +1,8 @@
 // UNIPOD PDP Dashboard - Database Schema
 // PostgreSQL with Prisma ORM
-// Entities: User, Program, Cohort, Module, Lesson, Assignment, Submission, Feedback, Progress, Certificate
+// Structure: Program → Course → Module → Chapter (Lesson)
+//   Program has many Courses; Course has many Modules; Module has many Lessons (chapters) and Assignments
+// Entities: User, Program, Course, Cohort, Module, Lesson (= chapter), Assignment, Submission, Feedback, Progress, Certificate
 
 generator client {
   provider = "prisma-client-js"
@@ -44,7 +46,8 @@ model User {
 
 // ============== PROGRAM & COHORT ==============
 enum ProgramStatus {
-  INACTIVE // default until at least one cohort exists
+  PENDING   // Awaiting admin approval (for courses)
+  INACTIVE  // default until at least one cohort exists
   ACTIVE
 }
 
@@ -61,7 +64,7 @@ model Program {
   updatedAt     DateTime      @updatedAt
 
   cohorts      Cohort[]
-  modules      Module[]
+  courses       Course[]      // Programs contain Courses
   certificates Certificate[]
 }
 
@@ -97,11 +100,31 @@ model Enrollment {
   @@index([traineeId])
 }
 
-// ============== LEARNING STRUCTURE (Program → Modules → Lessons → Assignment) ==============
+// ============== LEARNING STRUCTURE: Program → Course → Module → Chapter (Lesson) ==============
+// Course is standalone - can be assigned to Programs
+model Course {
+  id            String        @id @default(cuid())
+  programId     String?       // Optional: Course can be assigned to a Program
+  program       Program?      @relation(fields: [programId], references: [id], onDelete: SetNull)
+  name          String
+  description   String?
+  imageUrl      String?       // card / hero image for course listing
+  duration      String?       // e.g. "8 weeks"
+  skillOutcomes String?       // JSON or text description of outcomes
+  faq           Json?         // [{ question, answer }]
+  status        ProgramStatus @default(INACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  modules      Module[]
+
+  @@index([programId])
+}
+
 model Module {
   id          String   @id @default(cuid())
-  programId   String
-  program     Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  courseId    String?  // Module belongs to a Course (temporarily nullable for migration)
+  course      Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title           String
   description     String?  // welcome message / module overview for trainee
   inspiringQuotes String?  // one quote per line, shown on module overview
@@ -115,8 +138,11 @@ model Module {
   assignments          Assignment[]
   progress             Progress[]
   traineeScheduledEvents TraineeScheduledEvent[]
+
+  @@index([courseId])
 }
 
+// Chapter in the UI; stored as Lesson in DB (Program → Course → Module → Chapter)
 model Lesson {
   id        String   @id @default(cuid())
   moduleId  String

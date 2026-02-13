@@ -1,5 +1,6 @@
 // Progress tracking: module completion = all lessons accessed + mandatory assignment approved.
 // Program completion = all modules completed. Admin does not manually change progress.
+import { SubmissionStatus, ProgressStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { hasTraineeAccessedAllLessonsInModule } from "./lesson-access-service";
 
@@ -12,7 +13,7 @@ export async function revalidateProgress(
     include: {
       assignments: true,
       lessons: true,
-      program: { include: { modules: true } },
+      course: { include: { program: true } },
     },
   });
   if (!module) return;
@@ -23,7 +24,7 @@ export async function revalidateProgress(
     where: {
       traineeId,
       assignmentId: { in: allAssignmentIds },
-      status: "APPROVED",
+      status: SubmissionStatus.APPROVED,
     },
   });
   const totalAssignments = allAssignmentIds.length;
@@ -38,7 +39,7 @@ export async function revalidateProgress(
       where: {
         traineeId,
         assignmentId: { in: mandatoryAssignments.map((a) => a.id) },
-        status: "APPROVED",
+        status: SubmissionStatus.APPROVED,
       },
     })) >= mandatoryAssignments.length;
   const allLessonsAccessed =
@@ -53,28 +54,28 @@ export async function revalidateProgress(
     create: {
       traineeId,
       moduleId,
-      status: moduleComplete ? "COMPLETED" : "ACTIVE",
+      status: moduleComplete ? ProgressStatus.COMPLETED : ProgressStatus.ACTIVE,
       percentComplete,
       completedAt: moduleComplete ? new Date() : undefined,
     },
     update: {
-      status: moduleComplete ? "COMPLETED" : "ACTIVE",
+      status: moduleComplete ? ProgressStatus.COMPLETED : ProgressStatus.ACTIVE,
       percentComplete,
       completedAt: moduleComplete ? new Date() : undefined,
     },
   });
 
-  if (moduleComplete) {
-    const program = module.program;
-    const moduleIds = program.modules.map((m) => m.id);
+  if (moduleComplete && module.course?.program) {
+    const program = module.course.program;
+    const programModuleIds = (await prisma.module.findMany({ where: { course: { programId: program.id } }, select: { id: true } })).map((m) => m.id);
     const completed = await prisma.progress.count({
       where: {
         traineeId,
-        moduleId: { in: moduleIds },
-        status: "COMPLETED",
+        moduleId: { in: programModuleIds },
+        status: ProgressStatus.COMPLETED,
       },
     });
-    if (completed >= moduleIds.length) {
+    if (completed >= programModuleIds.length) {
       // Program completed - certificate will be created on demand when they request it
       // (see certificates API)
     }
@@ -87,7 +88,7 @@ export async function getTraineeProgramProgress(
   programId: string
 ) {
   const modules = await prisma.module.findMany({
-    where: { programId },
+    where: { course: { programId } },
     orderBy: { order: "asc" },
     include: {
       assignments: { select: { id: true } },
@@ -114,7 +115,7 @@ export async function getTraineeProgramProgress(
   });
   const overallPercent =
     modules.length > 0 ? Math.round(totalPercent / modules.length) : 0;
-  const allCompleted = moduleProgress.every((m) => m.status === "COMPLETED");
+  const allCompleted = moduleProgress.every((m) => m.status === ProgressStatus.COMPLETED);
   return {
     programId,
     overallPercent,

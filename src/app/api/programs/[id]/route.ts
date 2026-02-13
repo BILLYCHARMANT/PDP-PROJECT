@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logAudit, AUDIT_ACTIONS } from "@/lib/audit-service";
 import { z } from "zod";
@@ -32,11 +33,16 @@ export async function GET(
       where: { id },
       include: {
         cohorts: true,
-        modules: {
-          orderBy: { order: "asc" },
+        courses: {
+          orderBy: { createdAt: "desc" },
           include: {
-            lessons: { orderBy: { order: "asc" } },
-            assignments: { orderBy: { order: "asc" } },
+            modules: {
+              orderBy: { order: "asc" },
+              include: {
+                lessons: { orderBy: { order: "asc" } },
+                assignments: { orderBy: { order: "asc" } },
+              },
+            },
           },
         },
       },
@@ -72,17 +78,17 @@ export async function PATCH(
         { status: 400 }
       );
     }
-    const updateData: { name?: string; description?: string; imageUrl?: string | null; duration?: string; skillOutcomes?: string; faq?: { question: string; answer: string }[] | null } = {};
+    const updateData: Record<string, unknown> = {};
     if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
     if (parsed.data.description !== undefined) updateData.description = parsed.data.description;
     if (parsed.data.imageUrl !== undefined) updateData.imageUrl = parsed.data.imageUrl === "" ? null : parsed.data.imageUrl;
     if (parsed.data.duration !== undefined) updateData.duration = parsed.data.duration;
     if (parsed.data.skillOutcomes !== undefined) updateData.skillOutcomes = parsed.data.skillOutcomes;
-    if (parsed.data.faq !== undefined) updateData.faq = parsed.data.faq;
-    
+    if (parsed.data.faq !== undefined) updateData.faq = parsed.data.faq === null ? Prisma.JsonNull : parsed.data.faq;
+
     const program = await prisma.program.update({
       where: { id },
-      data: updateData,
+      data: updateData as Parameters<typeof prisma.program.update>[0]["data"],
     });
     
     // Handle cohort assignment
@@ -132,11 +138,15 @@ export async function DELETE(
       where: { id },
       include: {
         cohorts: { select: { id: true, name: true } },
-        modules: { select: { id: true, title: true } },
+        courses: {
+          include: {
+            modules: { select: { id: true, title: true } },
+          },
+        },
         _count: {
           select: {
             cohorts: true,
-            modules: true,
+            courses: true,
           },
         },
       },
@@ -146,10 +156,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Program not found" }, { status: 404 });
     }
     
-    // Warn if there are cohorts or modules (but allow deletion - cascade will handle it)
+    // Calculate total module count across all courses
+    const moduleCount = program.courses.reduce((sum, course) => sum + course.modules.length, 0);
+    
+    // Warn if there are cohorts or courses/modules (but allow deletion - cascade will handle it)
     // In production, you might want to prevent deletion if there are active cohorts
-    if (program._count.cohorts > 0 || program._count.modules > 0) {
-      // Still allow deletion - Prisma cascade will delete cohorts and modules
+    if (program._count.cohorts > 0 || program._count.courses > 0) {
+      // Still allow deletion - Prisma cascade will delete cohorts, courses, and modules
       // But we log this in audit details
     }
     
@@ -165,7 +178,8 @@ export async function DELETE(
       details: { 
         name: program.name,
         cohortCount: program._count.cohorts,
-        moduleCount: program._count.modules,
+        courseCount: program._count.courses,
+        moduleCount: moduleCount,
       },
     });
     

@@ -94,13 +94,12 @@ export function DashboardShell({
   const pathname = usePathname();
   const base = "/dashboard";
 
+  // Programs: Program management (new feature)
   // My Courses: Course List + Create Course for admin/mentor (CRUD); trainee sees My learning only (read + assignments).
   const adminLinks: NavEntry[] = [
     { href: base, label: "Home", icon: "home" },
-    { group: "My Courses", icon: "folder", items: [
-      { href: `${base}/admin/programs`, label: "Course List" },
-      { href: `${base}/courses/new`, label: "Create Course" },
-    ]},
+    { href: `${base}/admin/programs-management`, label: "Programs", icon: "folder" },
+    { href: `${base}/admin/programs`, label: "Course List", icon: "folder" },
     { href: `${base}/admin/cohorts`, label: "Cohorts", icon: "users" },
     { href: `${base}/admin/schedule-requests`, label: "Schedule requests", icon: "calendar" },
     { href: `${base}/admin/users`, label: "Users", icon: "user" },
@@ -109,10 +108,10 @@ export function DashboardShell({
   ];
   const mentorLinks: NavEntry[] = [
     { href: base, label: "Home", icon: "home" },
-    { group: "My Courses", icon: "folder", items: [
-      { href: `${base}/mentor/programs`, label: "Course List" },
-      { href: `${base}/courses/new`, label: "Create Course" },
+    { group: "Programs", icon: "folder", items: [
+      { href: `${base}/admin/programs-management`, label: "Programs" },
     ]},
+    { href: `${base}/mentor/programs`, label: "Course List", icon: "folder" },
     { href: `${base}/mentor/submissions/grade`, label: "Grading", icon: "quiz" },
     { href: `${base}/mentor/planning`, label: "Planning", icon: "calendar" },
     { href: `${base}/mentor/technical-support`, label: "Technical support", icon: "user" },

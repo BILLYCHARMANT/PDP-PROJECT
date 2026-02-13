@@ -4,10 +4,13 @@ import { useRouter } from "next/navigation";
 
 export function ModuleForm({
   programId,
+  courseId,
   initial = {},
   moduleId,
+  onSuccess,
 }: {
-  programId: string;
+  programId?: string; // Legacy support
+  courseId?: string;
   initial?: {
     title?: string;
     description?: string;
@@ -17,7 +20,10 @@ export function ModuleForm({
     endDate?: string | null;
   };
   moduleId?: string;
+  onSuccess?: () => void;
 }) {
+  // Use courseId if provided, otherwise fall back to programId (for backward compatibility)
+  const effectiveCourseId = courseId || programId;
   const router = useRouter();
   const [title, setTitle] = useState(initial.title ?? "");
   const [description, setDescription] = useState(initial.description ?? "");
@@ -51,7 +57,7 @@ export function ModuleForm({
             endDate: endDate ? new Date(endDate).toISOString() : null,
           }
         : {
-            programId,
+            courseId: effectiveCourseId,
             title,
             description: description || undefined,
             inspiringQuotes: inspiringQuotes.trim() || undefined,
@@ -70,10 +76,16 @@ export function ModuleForm({
         setLoading(false);
         return;
       }
+      setLoading(false);
+      if (onSuccess) {
+        onSuccess();
+        router.refresh();
+        return;
+      }
       if (!moduleId && data.id) {
-        router.push(`/dashboard/admin/programs/${programId}/modules/${data.id}`);
+        router.push(`/dashboard/admin/programs/${effectiveCourseId}/modules/${data.id}`);
       } else {
-        router.push(`/dashboard/admin/programs/${programId}`);
+        router.push(`/dashboard/admin/programs/${effectiveCourseId}`);
       }
       router.refresh();
     } catch {

@@ -69,7 +69,7 @@ export function ScheduleEventFormModal({ defaultDate, userName: initialUserName,
   const [date, setDate] = useState(() => (defaultDate >= todayStr ? defaultDate : todayStr));
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("12:00");
-  const [location, setLocation] = useState(LOCATIONS[0]);
+  const [location, setLocation] = useState<(typeof LOCATIONS)[number]>(LOCATIONS[0]);
   const [teamMembers, setTeamMembers] = useState("");
   const [equipmentNeeded, setEquipmentNeeded] = useState("");
   const [description, setDescription] = useState("");
@@ -331,7 +331,7 @@ export function ScheduleEventFormModal({ defaultDate, userName: initialUserName,
             <label className="block text-xs font-medium text-[#374151] mb-1">Location</label>
             <select
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              onChange={(e) => setLocation(e.target.value as typeof LOCATIONS[number])}
               required
               className="w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm"
             >

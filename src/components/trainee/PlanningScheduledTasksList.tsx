@@ -41,6 +41,8 @@ export type ScheduleItem = {
   programId?: string;
   /** For assignment_due: ISO datetime when assignment closes (for Active/Closed tag) */
   dueDateTime?: string;
+  /** For course_schedule: module → lesson label */
+  chapterLabel?: string;
 };
 
 const typeLabels: Record<ScheduleItemType, string> = {

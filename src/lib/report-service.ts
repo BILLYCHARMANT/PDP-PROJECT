@@ -2,6 +2,7 @@
  * Admin reporting: by program, cohort, date range, completion status.
  * Exports: CSV, PDF (data for report).
  */
+import { ProgressStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 
 export type ReportRow = {
@@ -59,21 +60,25 @@ export async function getReportData(filters: {
 
   const rows: ReportRow[] = [];
   for (const e of enrollments) {
+    const programId = e.cohort.programId;
+    const program = e.cohort.program;
+    if (!programId || !program) continue;
+
     const progress = await prisma.progress.findMany({
       where: {
         traineeId: e.traineeId,
-        module: { programId: e.cohort.programId },
+        module: { course: { programId } },
       },
     });
     const modules = await prisma.module.count({
-      where: { programId: e.cohort.programId },
+      where: { course: { programId } },
     });
-    const completed = progress.filter((p) => p.status === "COMPLETED").length;
+    const completed = progress.filter((p) => p.status === ProgressStatus.COMPLETED).length;
     const progressPercent = modules > 0 ? Math.round((completed / modules) * 100) : 0;
     const allCompleted = modules > 0 && completed >= modules;
     const cert = await prisma.certificate.findUnique({
       where: {
-        traineeId_programId: { traineeId: e.traineeId, programId: e.cohort.programId },
+        traineeId_programId: { traineeId: e.traineeId, programId },
       },
     });
 
@@ -86,8 +91,8 @@ export async function getReportData(filters: {
       traineeId: e.trainee.id,
       traineeName: e.trainee.name,
       traineeEmail: e.trainee.email,
-      programId: e.cohort.program.id,
-      programName: e.cohort.program.name,
+      programId: program.id,
+      programName: program.name,
       cohortId: e.cohort.id,
       cohortName: e.cohort.name,
       enrolledAt: e.enrolledAt.toISOString(),

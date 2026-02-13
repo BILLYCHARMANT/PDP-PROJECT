@@ -421,7 +421,7 @@ export function TraineeSubmissionsView() {
                             Resubmission requested
                           </div>
                         )}
-                        {detail.status === "APPROVED" && f.adminApprovedAt && (
+                        {detail.status === "APPROVED" && (f as { adminApprovedAt?: string | Date }).adminApprovedAt && (
                           <div className="px-2 py-1 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
                             Final assessment
                           </div>
@@ -453,9 +453,9 @@ export function TraineeSubmissionsView() {
                           </p>
                         </div>
                       )}
-                      {f.adminApprovedAt && (
+                      {(f as unknown as { adminApprovedAt?: string | Date }).adminApprovedAt && (
                         <p className="text-xs text-[#6b7280] dark:text-[#9ca3af] mt-3 pt-3 border-t border-[#e5e7eb] dark:border-[#374151]">
-                          Final confirmation on {new Date(f.adminApprovedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                          Final confirmation on {new Date((f as unknown as { adminApprovedAt: string | Date }).adminApprovedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
                         </p>
                       )}
                     </div>
@@ -486,14 +486,18 @@ export function TraineeSubmissionsView() {
                 <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
                   Your mentor has requested a resubmission. Please update your submission from the assignment page.
                 </p>
-                {detail.assignment.module?.programId && detail.assignment.module?.id && (
+                {(() => {
+                  const mod = detail.assignment.module as { id: string; programId?: string; course?: { programId: string } } | undefined;
+                  const programId = mod?.course?.programId ?? mod?.programId;
+                  return programId && mod?.id ? (
                   <a
-                    href={`/dashboard/trainee/learn/${detail.assignment.module.programId}/${detail.assignment.module.id}/assignment/${detail.assignment.id}`}
+                    href={`/dashboard/trainee/learn/${programId}/${mod.id}/assignment/${detail.assignment.id}`}
                     className="inline-block mt-3 text-sm font-medium text-orange-800 dark:text-orange-200 hover:underline"
                   >
                     Go to assignment →
                   </a>
-                )}
+                  ) : null;
+                })()}
               </section>
             )}
           </div>

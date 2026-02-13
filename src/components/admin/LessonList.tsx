@@ -32,7 +32,7 @@ export function LessonList({
         >
           <span className="font-medium text-slate-800">{l.title}</span>
           <Link
-            href={`/dashboard/admin/programs/${programId}/modules/${moduleId}/lessons/${l.id}`}
+            href={`/dashboard/admin/programs/${programId}?moduleId=${moduleId}&editLessonId=${l.id}`}
             className="text-sm link-unipod"
           >
             Edit

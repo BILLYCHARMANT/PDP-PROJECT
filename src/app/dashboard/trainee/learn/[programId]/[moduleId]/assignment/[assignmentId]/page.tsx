@@ -18,11 +18,11 @@ export default async function TraineeAssignmentPage({
     where: { id: assignmentId },
     include: {
       module: {
-        include: { program: { select: { id: true, name: true } } },
+        include: { course: { include: { program: { select: { id: true, name: true } } } } },
       },
     },
   });
-  if (!assignment || assignment.moduleId !== moduleId || assignment.module.programId !== programId) notFound();
+  if (!assignment || assignment.moduleId !== moduleId || assignment.module.course?.programId !== programId) notFound();
 
   const enrollment = await prisma.enrollment.findFirst({
     where: {
@@ -57,7 +57,7 @@ export default async function TraineeAssignmentPage({
         </Link>
         <span aria-hidden>/</span>
         <Link href={`/dashboard/trainee/learn/${programId}`} className="hover:text-[var(--unipod-blue)]">
-          {assignment.module.program.name}
+          {assignment.module.course?.program?.name ?? "Course"}
         </Link>
         <span aria-hidden>/</span>
         <Link href={`/dashboard/trainee/learn/${programId}/${moduleId}`} className="hover:text-[var(--unipod-blue)]">

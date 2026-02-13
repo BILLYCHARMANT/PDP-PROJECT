@@ -18,7 +18,7 @@ export default async function CohortDetailPage({
     include: {
       program: {
         include: {
-          modules: { select: { id: true } },
+          courses: { include: { modules: { select: { id: true } } } },
         },
       },
       mentor: { select: { id: true, name: true, email: true } },
@@ -43,10 +43,16 @@ export default async function CohortDetailPage({
   if (!cohort) notFound();
 
   const traineeIds = cohort.enrollments.map((e) => e.traineeId);
-  const moduleIds = cohort.program?.modules.map((m) => m.id) ?? [];
+  const moduleIds =
+    cohort.program?.courses.flatMap((c) => c.modules.map((m) => m.id)) ?? [];
 
-  const [programs, mentors, trainees, progressData, submissionData] = await Promise.all([
+  const [programs, courses, mentors, trainees, progressData, submissionData] = await Promise.all([
     prisma.program.findMany({ orderBy: { name: "asc" } }),
+    prisma.course.findMany({
+      where: { programId: { not: null } },
+      select: { id: true, name: true, programId: true },
+      orderBy: { name: "asc" },
+    }),
     prisma.user.findMany({
       where: { role: "MENTOR" },
       select: { id: true, name: true, email: true },
@@ -76,7 +82,9 @@ export default async function CohortDetailPage({
             traineeId: { in: traineeIds },
             assignment: {
               module: {
-                programId: cohort.programId ?? undefined,
+                course: {
+                  programId: cohort.programId ?? undefined,
+                },
               },
             },
           },
@@ -106,12 +114,15 @@ export default async function CohortDetailPage({
         cohortId={cohort.id}
         cohortName={cohort.name}
         assignedProgram={cohort.program ? { id: cohort.program.id, name: cohort.program.name } : null}
+        assignedCourseIds={cohort.program?.courses.map((c) => c.id) ?? []}
+        assignedCourses={cohort.program?.courses.map((c) => ({ id: c.id, name: c.name })) ?? []}
         mentor={cohort.mentor}
         enrollments={cohort.enrollments}
         progressData={progressData}
         submissionData={submissionData}
         moduleCount={moduleIds.length}
         programs={programs}
+        courses={courses}
         mentors={mentors}
         trainees={trainees}
         initial={{

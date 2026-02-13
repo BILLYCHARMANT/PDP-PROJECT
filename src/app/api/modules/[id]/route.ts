@@ -29,7 +29,7 @@ export async function GET(
     const module_ = await prisma.module.findUnique({
       where: { id },
       include: {
-        program: { select: { id: true, name: true } },
+        course: { include: { program: { select: { id: true, name: true } } } },
         lessons: { orderBy: { order: "asc" } },
         assignments: { orderBy: { order: "asc" } },
       },
@@ -75,7 +75,7 @@ export async function PATCH(
     const module_ = await prisma.module.update({
       where: { id },
       data,
-      include: { program: { select: { id: true, name: true } } },
+      include: { course: { include: { program: { select: { id: true, name: true } } } } },
     });
     return NextResponse.json(module_);
   } catch (e) {

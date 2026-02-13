@@ -65,7 +65,7 @@ export async function validateProgramStructure(
   programId: string
 ): Promise<{ valid: boolean; modules: ModuleValidation[] }> {
   const modules = await prisma.module.findMany({
-    where: { programId },
+    where: { course: { programId } },
     orderBy: { order: "asc" },
   });
   const results: ModuleValidation[] = [];

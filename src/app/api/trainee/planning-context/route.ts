@@ -56,11 +56,11 @@ export async function GET() {
       programIds.length === 0
         ? []
         : await prisma.module.findMany({
-            where: { programId: { in: programIds } },
+            where: { course: { programId: { in: programIds } } },
             select: {
               id: true,
               title: true,
-              programId: true,
+              course: { select: { programId: true } },
               lessons: { select: { id: true, title: true, order: true }, orderBy: { order: "asc" } },
             },
             orderBy: { order: "asc" },

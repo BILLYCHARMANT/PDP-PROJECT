@@ -78,7 +78,7 @@ export async function GET(
       },
       recentEnrollments: enrollmentsWithProgram.map((e) => ({
         id: e.id,
-        programName: e.cohort.program.name,
+        programName: e.cohort.program?.name ?? "—",
         cohortName: e.cohort.name,
         enrolledAt: e.enrolledAt,
       })),

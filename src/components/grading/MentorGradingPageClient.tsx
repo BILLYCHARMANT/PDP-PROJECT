@@ -7,8 +7,10 @@ import { AssignmentGradingView } from "./AssignmentGradingView";
 type Submission = {
   id: string;
   assignmentId: string;
+  status?: string;
   assignment: { id: string; title: string };
   trainee: { id: string; name: string | null; email: string | null };
+  feedback?: { id: string }[];
 };
 
 export function MentorGradingPageClient({ backHref }: { backHref: string }) {
@@ -130,7 +132,12 @@ export function MentorGradingPageClient({ backHref }: { backHref: string }) {
       </div>
       <div className="flex-1 min-h-0 overflow-hidden">
         <AssignmentGradingView
-          submissions={filteredSubmissions}
+          submissions={filteredSubmissions.map((s) => ({
+            id: s.id,
+            status: s.status ?? "PENDING",
+            trainee: s.trainee,
+            feedback: s.feedback?.map((f) => ({ id: f.id })) ?? [],
+          }))}
           assignmentTitle={assignmentTitle ?? ""}
           mode="mentor"
           backHref={backHref}

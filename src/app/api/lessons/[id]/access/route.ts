@@ -18,15 +18,19 @@ export async function POST(
     const { id: lessonId } = await params;
     const lesson = await prisma.lesson.findUnique({
       where: { id: lessonId },
-      include: { module: { include: { program: true } } },
+      include: { module: { include: { course: { include: { program: true } } } } },
     });
     if (!lesson) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
     }
+    const programId = lesson.module.course?.programId;
+    if (!programId) {
+      return NextResponse.json({ error: "Lesson not in a program" }, { status: 400 });
+    }
     const enrollment = await prisma.enrollment.findFirst({
       where: {
         traineeId: session.user.id,
-        cohort: { programId: lesson.module.programId },
+        cohort: { programId },
       },
       include: { cohort: true },
     });

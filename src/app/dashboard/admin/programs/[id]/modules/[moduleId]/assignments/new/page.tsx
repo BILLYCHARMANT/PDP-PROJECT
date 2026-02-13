@@ -11,11 +11,11 @@ export default async function NewAssignmentPage({
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "MENTOR")) redirect("/dashboard");
-  const { id: programId, moduleId } = await params;
+  const { id: courseId, moduleId } = await params;
   return (
     <div>
       <Link
-        href={`/dashboard/admin/programs/${programId}/modules/${moduleId}`}
+        href={`/dashboard/admin/programs/${courseId}/modules/${moduleId}`}
         className="text-sm text-slate-600 hover:text-slate-900"
       >
         ← Module
@@ -23,7 +23,7 @@ export default async function NewAssignmentPage({
       <h1 className="text-2xl font-bold text-slate-800 mt-4 mb-4">
         New assignment
       </h1>
-      <AssignmentForm moduleId={moduleId} programId={programId} />
+      <AssignmentForm moduleId={moduleId} programId={courseId} />
     </div>
   );
 }
