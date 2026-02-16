@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { CreateCohortModal } from "@/components/admin/CreateCohortModal";
+
+type Program = { id: string; name: string };
+type Course = { id: string; name: string; programId: string | null };
+type Mentor = { id: string; name: string; email: string };
 
 type Cohort = {
   id: string;
@@ -14,14 +19,23 @@ type Cohort = {
   _count?: { enrollments: number };
 };
 
-export function CohortsList() {
+export function CohortsList({
+  programs = [],
+  allCourses = [],
+  mentors = [],
+}: {
+  programs?: Program[];
+  allCourses?: Course[];
+  mentors?: Mentor[];
+} = {}) {
   const router = useRouter();
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterValue, setFilterValue] = useState<string>(""); // "" = All, "program:id", "mentor:id"
+  const [filterValue, setFilterValue] = useState<string>("");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   function loadCohorts() {
     fetch("/api/cohorts")
@@ -194,14 +208,15 @@ export function CohortsList() {
                 </svg>
               </button>
             </div>
-            <Link
-              href="/dashboard/admin/cohorts/new"
+            <button
+              type="button"
+              onClick={() => setCreateModalOpen(true)}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white"
               style={{ backgroundColor: "var(--unipod-blue, #2563eb)" }}
             >
               <span className="text-lg leading-none">+</span>
               New
-            </Link>
+            </button>
           </div>
         </div>
       </div>
@@ -221,11 +236,26 @@ export function CohortsList() {
 
       {/* Content */}
       {filtered.length === 0 ? (
-        <div className="p-12 text-center text-[#6b7280]">
-          {cohorts.length === 0
-            ? "No cohorts yet. Create one to get started."
-            : "No cohorts match your search."}
-        </div>
+        <>
+          <div className="p-12 text-center text-[#6b7280]">
+            {cohorts.length === 0
+              ? "No cohorts yet. Create one to get started."
+              : "No cohorts match your search."}
+            {cohorts.length === 0 && (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => setCreateModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white"
+                  style={{ backgroundColor: "var(--unipod-blue, #2563eb)" }}
+                >
+                  <span className="text-lg leading-none">+</span>
+                  New cohort
+                </button>
+              </div>
+            )}
+          </div>
+        </>
       ) : viewMode === "grid" ? (
         <div className="p-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((c) => (
@@ -305,6 +335,20 @@ export function CohortsList() {
             </li>
           ))}
         </ul>
+      )}
+
+      {createModalOpen && (
+        <CreateCohortModal
+          programs={programs}
+          allCourses={allCourses}
+          mentors={mentors}
+          onClose={() => setCreateModalOpen(false)}
+          onSuccess={() => {
+            loadCohorts();
+            setCreateModalOpen(false);
+            router.refresh();
+          }}
+        />
       )}
     </div>
   );

@@ -408,10 +408,12 @@ export function AdminScheduleApprovalsContent({
                     <ul className="space-y-2 flex-1 min-h-0 overflow-auto">
                       {filteredRequests.map((r) => (
                         <li key={r.id}>
-                          <button
-                            type="button"
+                          <div
+                            role="button"
+                            tabIndex={0}
                             onClick={() => setSelectedRequest(r)}
-                            className="w-full text-left rounded-lg border border-[#e5e7eb] dark:border-[#374151] bg-[#f9fafb] dark:bg-[#111827] p-3 hover:border-[#d1d5db] dark:hover:border-[#4b5563] transition-colors"
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedRequest(r); } }}
+                            className="w-full text-left rounded-lg border border-[#e5e7eb] dark:border-[#374151] bg-[#f9fafb] dark:bg-[#111827] p-3 hover:border-[#d1d5db] dark:hover:border-[#4b5563] transition-colors cursor-pointer"
                           >
                             <div className="flex items-center justify-between gap-2 flex-wrap">
                               <span
@@ -460,7 +462,7 @@ export function AdminScheduleApprovalsContent({
                                 </button>
                               </div>
                             )}
-                          </button>
+                          </div>
                         </li>
                       ))}
                     </ul>

@@ -35,14 +35,14 @@ export function CohortForm({
   const [error, setError] = useState("");
   const [courses, setCourses] = useState<Course[]>([]);
 
-  // Filter courses by selected program
+  // Filter courses by selected program: show courses in this program + unassigned courses (so created courses appear)
   useEffect(() => {
     if (selectedProgramId && allCourses) {
-      const filtered = allCourses.filter((c) => c.programId === selectedProgramId);
+      const filtered = allCourses.filter(
+        (c) => c.programId === selectedProgramId || c.programId == null
+      );
       setCourses(filtered);
-      // Clear course selection when program changes
       setCourseId("");
-      // Set programId to selected program (this is what gets saved)
       setProgramId(selectedProgramId);
     } else {
       setCourses([]);
@@ -78,9 +78,12 @@ export function CohortForm({
         setLoading(false);
         return;
       }
-      onSuccess?.();
-      router.push(cohortId ? `/dashboard/admin/cohorts/${cohortId}` : "/dashboard/admin/cohorts");
-      router.refresh();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push(cohortId ? `/dashboard/admin/cohorts/${cohortId}` : "/dashboard/admin/cohorts");
+        router.refresh();
+      }
     } catch {
       setError("Network error");
       setLoading(false);

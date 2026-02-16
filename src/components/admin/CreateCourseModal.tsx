@@ -7,13 +7,15 @@ export function CreateCourseModal({
   onClose,
   onSuccess,
   userRole,
+  initialProgramId,
 }: {
   onClose: () => void;
   onSuccess?: () => void;
   userRole: string;
+  initialProgramId?: string | null;
 }) {
   const [step, setStep] = useState(1);
-  const [programId, setProgramId] = useState<string | null>(null);
+  const [programId, setProgramId] = useState<string | null>(initialProgramId ?? null);
   const [courseId, setCourseId] = useState<string | null>(null);
 
   // Prevent body scroll when modal is open

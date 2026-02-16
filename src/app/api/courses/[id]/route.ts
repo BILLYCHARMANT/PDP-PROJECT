@@ -14,8 +14,10 @@ const updateSchema = z.object({
   duration: z.string().optional(),
   skillOutcomes: z.string().optional(),
   faq: z.array(z.object({ question: z.string(), answer: z.string() })).optional(),
-  programId: z.string().nullable().optional(), // Allow assigning/unassigning courses to programs (admin only)
-  status: z.enum(["PENDING", "INACTIVE", "ACTIVE"]).optional(), // Allow status updates (admin only)
+  programId: z.string().nullable().optional(),
+  status: z.enum(["PENDING", "INACTIVE", "ACTIVE"]).optional(),
+  startDate: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
 });
 
 export async function GET(
@@ -40,6 +42,8 @@ export async function GET(
         faq: true,
         status: true,
         programId: true,
+        startDate: true,
+        endDate: true,
         program: { select: { id: true, name: true } },
         modules: { select: { id: true, title: true, order: true } },
       },
@@ -104,6 +108,13 @@ export async function PATCH(
       );
     }
     
+    const startDate = parsed.data.startDate !== undefined
+      ? (parsed.data.startDate && parsed.data.startDate !== "" ? new Date(parsed.data.startDate) : null)
+      : undefined;
+    const endDate = parsed.data.endDate !== undefined
+      ? (parsed.data.endDate && parsed.data.endDate !== "" ? new Date(parsed.data.endDate) : null)
+      : undefined;
+
     const course = await prisma.course.update({
       where: { id },
       data: {
@@ -115,6 +126,8 @@ export async function PATCH(
         ...(parsed.data.faq !== undefined && { faq: parsed.data.faq }),
         ...(parsed.data.programId !== undefined && { programId: parsed.data.programId || null }),
         ...(parsed.data.status !== undefined && { status: parsed.data.status }),
+        ...(startDate !== undefined && { startDate }),
+        ...(endDate !== undefined && { endDate }),
       },
       include: {
         program: { select: { id: true, name: true } },

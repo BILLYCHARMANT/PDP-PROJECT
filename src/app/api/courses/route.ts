@@ -7,12 +7,14 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const createSchema = z.object({
-  programId: z.string().optional(), // Optional: Course can be assigned to program later
+  programId: z.string().optional(),
   name: z.string().min(1),
   description: z.string().optional(),
   imageUrl: z.string().optional().or(z.literal("")),
   duration: z.string().optional(),
   skillOutcomes: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 export async function GET(req: Request) {
@@ -42,6 +44,8 @@ export async function GET(req: Request) {
         duration: true,
         programId: true,
         status: true,
+        startDate: true,
+        endDate: true,
         program: { select: { id: true, name: true } },
         modules: { select: { id: true, title: true, order: true } },
       },
@@ -87,15 +91,20 @@ export async function POST(req: Request) {
     // Set status: PENDING for mentors, ACTIVE for admins (admins have all rights, auto-approved)
     const status = session.user.role === "MENTOR" ? "PENDING" : "ACTIVE";
     
+    const startDate = parsed.data.startDate?.trim() ? new Date(parsed.data.startDate) : null;
+    const endDate = parsed.data.endDate?.trim() ? new Date(parsed.data.endDate) : null;
+
     const course = await prisma.course.create({
       data: {
-        programId: parsed.data.programId || null, // Optional: can be assigned later
+        programId: parsed.data.programId || null,
         name: parsed.data.name,
         description: parsed.data.description ?? null,
         imageUrl: parsed.data.imageUrl && parsed.data.imageUrl !== "" ? parsed.data.imageUrl : null,
         duration: parsed.data.duration ?? null,
         skillOutcomes: parsed.data.skillOutcomes ?? null,
         status: status,
+        startDate,
+        endDate,
       },
       include: {
         program: { select: { id: true, name: true } },

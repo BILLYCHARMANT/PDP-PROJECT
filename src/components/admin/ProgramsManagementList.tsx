@@ -100,20 +100,32 @@ export function ProgramsManagementList({ showCreateAction = true }: { showCreate
 
   if (programs.length === 0) {
     return (
-      <div className="rounded-xl border border-[#e5e7eb] dark:border-[#374151] bg-white dark:bg-[#1f2937] p-12 text-center">
-        <p className="text-[#6b7280] dark:text-[#9ca3af] mb-4">
-          {showCreateAction ? "No programs yet. Create your first UNIPOD program to get started." : "No programs yet. Ask an admin or mentor to create a program."}
-        </p>
-        {showCreateAction && (
-          <a
-            href="/dashboard/admin/programs-management/new"
-            className="inline-block rounded-lg px-4 py-2 text-white font-medium hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: "var(--unipod-blue)" }}
-          >
-            Create Your First Program
-          </a>
+      <>
+        <div className="rounded-xl border border-[#e5e7eb] dark:border-[#374151] bg-white dark:bg-[#1f2937] p-12 text-center">
+          <p className="text-[#6b7280] dark:text-[#9ca3af] mb-4">
+            {showCreateAction ? "No programs yet. Create your first UNIPOD program to get started." : "No programs yet. Ask an admin or mentor to create a program."}
+          </p>
+          {showCreateAction && (
+            <button
+              type="button"
+              onClick={() => setCreateModalOpen(true)}
+              className="inline-block rounded-lg px-4 py-2 text-white font-medium hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "var(--unipod-blue)" }}
+            >
+              Create Your First Program
+            </button>
+          )}
+        </div>
+        {createModalOpen && (
+          <CreateProgramModal
+            onClose={() => setCreateModalOpen(false)}
+            onSuccess={() => {
+              loadPrograms();
+              router.refresh();
+            }}
+          />
         )}
-      </div>
+      </>
     );
   }
 

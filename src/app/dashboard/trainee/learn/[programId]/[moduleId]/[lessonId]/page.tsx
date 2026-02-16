@@ -26,6 +26,13 @@ export default async function TraineeLessonPage({
   });
   if (!lesson || lesson.moduleId !== moduleId || lesson.module.course?.programId !== programId) notFound();
 
+  const course = lesson.module.course;
+  if (course) {
+    const now = new Date();
+    if (course.startDate != null && now < course.startDate) notFound();
+    if (course.endDate != null && now > course.endDate) notFound();
+  }
+
   const enrollment = await prisma.enrollment.findFirst({
     where: {
       traineeId: session.user.id,

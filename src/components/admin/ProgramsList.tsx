@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { CreateCourseModal } from "@/components/admin/CreateCourseModal";
 
 type Program = {
   id: string;
@@ -36,6 +37,8 @@ export function ProgramsList({ showCreateAction = true }: { showCreateAction?: b
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   
   function loadPrograms() {
     fetch("/api/programs")
@@ -49,6 +52,15 @@ export function ProgramsList({ showCreateAction = true }: { showCreateAction?: b
   
   useEffect(() => {
     loadPrograms();
+    // Fetch user role for modal
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.user?.role) {
+          setUserRole(data.user.role);
+        }
+      })
+      .catch(() => {});
   }, []);
   
   async function handleDelete(id: string, name: string, cohortCount: number, moduleCount: number) {
@@ -99,20 +111,33 @@ export function ProgramsList({ showCreateAction = true }: { showCreateAction?: b
 
   if (programs.length === 0) {
     return (
-      <div className="rounded-xl border border-[#e5e7eb] bg-white p-12 text-center">
-        <p className="text-[#6b7280] dark:text-[#9ca3af] mb-4">
-          {showCreateAction ? "No courses yet." : "No courses yet. Ask an admin or mentor to create a course."}
-        </p>
-        {showCreateAction && (
-          <Link
-            href="/dashboard/courses/new"
-            className="inline-block rounded-lg px-4 py-2 text-white font-medium"
-            style={{ backgroundColor: "var(--unipod-blue)" }}
-          >
-            Create your first course
-          </Link>
+      <>
+        <div className="rounded-xl border border-[#e5e7eb] bg-white p-12 text-center">
+          <p className="text-[#6b7280] dark:text-[#9ca3af] mb-4">
+            {showCreateAction ? "No courses yet." : "No courses yet. Ask an admin or mentor to create a course."}
+          </p>
+          {showCreateAction && (
+            <button
+              type="button"
+              onClick={() => setCreateModalOpen(true)}
+              className="inline-block rounded-lg px-4 py-2 text-white font-medium"
+              style={{ backgroundColor: "var(--unipod-blue)" }}
+            >
+              Create your first course
+            </button>
+          )}
+        </div>
+        {createModalOpen && userRole && (
+          <CreateCourseModal
+            userRole={userRole}
+            onClose={() => setCreateModalOpen(false)}
+            onSuccess={() => {
+              loadPrograms();
+              setCreateModalOpen(false);
+            }}
+          />
         )}
-      </div>
+      </>
     );
   }
 
@@ -203,8 +228,9 @@ export function ProgramsList({ showCreateAction = true }: { showCreateAction?: b
       </section>
       {showCreateAction && (
         <div className="flex justify-center">
-          <Link
-            href="/dashboard/courses/new"
+          <button
+            type="button"
+            onClick={() => setCreateModalOpen(true)}
             className="rounded-lg border-2 py-2.5 px-6 text-sm font-medium"
             style={{
               borderColor: "var(--unipod-blue)",
@@ -212,8 +238,18 @@ export function ProgramsList({ showCreateAction = true }: { showCreateAction?: b
             }}
           >
             Create Course
-          </Link>
+          </button>
         </div>
+      )}
+      {createModalOpen && userRole && (
+        <CreateCourseModal
+          userRole={userRole}
+          onClose={() => setCreateModalOpen(false)}
+          onSuccess={() => {
+            loadPrograms();
+            setCreateModalOpen(false);
+          }}
+        />
       )}
     </div>
   );

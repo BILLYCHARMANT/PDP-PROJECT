@@ -113,6 +113,8 @@ model Course {
   skillOutcomes String?       // JSON or text description of outcomes
   faq           Json?         // [{ question, answer }]
   status        ProgramStatus @default(INACTIVE)
+  startDate     DateTime?     // course opens at this time; active when now >= startDate
+  endDate       DateTime?     // course closes at this time; closed when now > endDate
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 

@@ -45,6 +45,8 @@ export function CreateCourseWizard({
   const [imageUrl, setImageUrl] = useState("");
   const [duration, setDuration] = useState("");
   const [skillOutcomes, setSkillOutcomes] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -99,6 +101,8 @@ export function CreateCourseWizard({
         imageUrl,
         duration,
         skillOutcomes,
+        startDate,
+        endDate,
       },
       step2: {
         moduleTitle,
@@ -135,6 +139,8 @@ export function CreateCourseWizard({
           setImageUrl(draftData.step1.imageUrl || "");
           setDuration(draftData.step1.duration || "");
           setSkillOutcomes(draftData.step1.skillOutcomes || "");
+          setStartDate(draftData.step1.startDate ?? "");
+          setEndDate(draftData.step1.endDate ?? "");
         }
         if (draftData.step2) {
           setModuleTitle(draftData.step2.moduleTitle || "");
@@ -183,6 +189,8 @@ export function CreateCourseWizard({
           if (c?.imageUrl) setImageUrl(c.imageUrl);
           if (c?.duration) setDuration(c.duration);
           if (c?.skillOutcomes) setSkillOutcomes(c.skillOutcomes);
+          if (c?.startDate) setStartDate(new Date(c.startDate).toISOString().slice(0, 16));
+          if (c?.endDate) setEndDate(new Date(c.endDate).toISOString().slice(0, 16));
           if (c?.program?.id) {
             setProgramId(c.program.id);
             setProgramName(c.program.name);
@@ -279,12 +287,14 @@ export function CreateCourseWizard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          programId: programId || undefined, // Optional: can assign to program later
+          programId: programId || undefined,
           name: name.trim(),
           description: description.trim() || undefined,
           imageUrl: imageUrl.trim() || undefined,
           duration: duration.trim() || undefined,
           skillOutcomes: skillOutcomes.trim() || undefined,
+          startDate: startDate.trim() ? new Date(startDate.trim()).toISOString() : undefined,
+          endDate: endDate.trim() ? new Date(endDate.trim()).toISOString() : undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -352,6 +362,8 @@ export function CreateCourseWizard({
               imageUrl: imageUrl.trim() || undefined,
               duration: duration.trim() || undefined,
               skillOutcomes: skillOutcomes.trim() || undefined,
+              startDate: startDate.trim() ? new Date(startDate.trim()).toISOString() : null,
+              endDate: endDate.trim() ? new Date(endDate.trim()).toISOString() : null,
             }),
           });
           const data = await res.json().catch(() => ({}));
@@ -390,7 +402,15 @@ export function CreateCourseWizard({
         }
       }
     } else if (step === 2) {
-      // Just move to step 3 - don't create module yet, it's saved as draft
+      // Create module if form data is filled before moving to step 3
+      if (moduleTitle.trim()) {
+        const moduleSuccess = await createModule();
+        if (!moduleSuccess) {
+          // Don't move to next step if module creation failed
+          return;
+        }
+      }
+      // Move to step 3 after module is created (or if no module data was filled)
       setStep(3);
       if (isModal && onStepChange) {
         onStepChange(3, programId, courseId);
@@ -399,6 +419,14 @@ export function CreateCourseWizard({
       // Load draft data for step 3
       setTimeout(() => loadDraftFromStorage(), 100);
     } else if (step === 3) {
+      // Create lesson if form data is filled before moving to step 4
+      if (selectedModuleId && lessonTitle.trim()) {
+        const lessonSuccess = await createLesson();
+        if (!lessonSuccess) {
+          // Don't move to next step if lesson creation failed
+          return;
+        }
+      }
       // Move to step 4 (Q/A)
       setStep(4);
       if (isModal && onStepChange) {
@@ -1384,6 +1412,35 @@ export function CreateCourseWizard({
               rows={2}
               className="w-full rounded-lg border border-[#e5e7eb] dark:border-[#374151] bg-white dark:bg-[#111827] px-3 py-2 text-[#171717] dark:text-[#f9fafb]"
               placeholder="One outcome per line or short paragraph"
+              dir="ltr"
+              style={{ direction: "ltr", textAlign: "left" }}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#374151] dark:text-[#d1d5db] mb-1">
+              Course start (date & time)
+            </label>
+            <input
+              type="datetime-local"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full rounded-lg border border-[#e5e7eb] dark:border-[#374151] bg-white dark:bg-[#111827] px-3 py-2 text-[#171717] dark:text-[#f9fafb]"
+              dir="ltr"
+              style={{ direction: "ltr", textAlign: "left" }}
+            />
+            <p className="mt-1 text-xs text-[#6b7280] dark:text-[#9ca3af]">
+              Course is active to trainees only between start and end time. Leave empty for no restriction.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#374151] dark:text-[#d1d5db] mb-1">
+              Course end (date & time)
+            </label>
+            <input
+              type="datetime-local"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full rounded-lg border border-[#e5e7eb] dark:border-[#374151] bg-white dark:bg-[#111827] px-3 py-2 text-[#171717] dark:text-[#f9fafb]"
               dir="ltr"
               style={{ direction: "ltr", textAlign: "left" }}
             />

@@ -16,7 +16,6 @@ export default async function NewCohortPage({
   const [programs, courses, mentors] = await Promise.all([
     prisma.program.findMany({ orderBy: { name: "asc" } }),
     prisma.course.findMany({
-      where: { programId: { not: null } },
       select: { id: true, name: true, programId: true },
       orderBy: { name: "asc" },
     }),

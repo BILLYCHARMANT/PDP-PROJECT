@@ -12,6 +12,144 @@ type Lesson = {
   resourceUrl: string | null;
 };
 
+// Content blocks from ChapterContentBuilder (JSON-stored chapter content)
+type ContentBlock =
+  | { type: "title"; content: string; id: string }
+  | { type: "header"; content: string; level?: 1 | 2 | 3; id: string }
+  | { type: "paragraph"; content: string; htmlContent?: string; id: string }
+  | { type: "image"; url: string; alt?: string; id: string }
+  | { type: "video"; url: string; title?: string; id: string }
+  | { type: "link"; url: string; text: string; id: string }
+  | { type: "quiz"; title: string; content: string; htmlContent?: string; id: string }
+  | { type: "assignment"; title: string; content: string; htmlContent?: string; id: string };
+
+function parseContentBlocks(content: string | null): ContentBlock[] | null {
+  if (!content || !content.trim()) return null;
+  try {
+    const parsed = JSON.parse(content) as unknown;
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    const first = parsed[0] as Record<string, unknown>;
+    if (!first || typeof first.type !== "string") return null;
+    return parsed as ContentBlock[];
+  } catch {
+    return null;
+  }
+}
+
+function RenderedBlocks({ blocks }: { blocks: ContentBlock[] }) {
+  return (
+    <div className="space-y-5 max-w-[65ch]" style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}>
+      {blocks.map((block) => {
+        if (block.type === "title") {
+          return (
+            <h2 key={block.id} className="text-xl font-bold text-[#171717] dark:text-[#f9fafb]">
+              {block.content}
+            </h2>
+          );
+        }
+        if (block.type === "header") {
+          const level = block.level ?? 1;
+          const Tag = level === 1 ? "h2" : level === 2 ? "h3" : "h4";
+          return (
+            <Tag key={block.id} className="mt-6 font-semibold text-[#171717] dark:text-[#f9fafb]">
+              {block.content}
+            </Tag>
+          );
+        }
+        if (block.type === "paragraph") {
+          const html = (block as { htmlContent?: string }).htmlContent;
+          if (html && html.trim()) {
+            return (
+              <div
+                key={block.id}
+                className="text-[17px] leading-[1.75] text-[#374151] dark:text-[#d1d5db] prose prose-slate dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            );
+          }
+          if (block.content.trim()) {
+            return (
+              <p key={block.id} className="text-[17px] leading-[1.75] text-[#374151] dark:text-[#d1d5db]">
+                {block.content}
+              </p>
+            );
+          }
+          return null;
+        }
+        if (block.type === "image" && block.url) {
+          return (
+            <figure key={block.id} className="my-6 overflow-hidden rounded-2xl border border-[#e5e7eb] dark:border-[#374151] bg-[#fafafa] dark:bg-[#111827] shadow-sm">
+              <img
+                src={block.url}
+                alt={block.alt || ""}
+                className="w-full max-h-[400px] object-contain object-center"
+              />
+            </figure>
+          );
+        }
+        if (block.type === "video" && block.url) {
+          const isYoutube = block.url.includes("youtube.com") || block.url.includes("youtu.be");
+          return (
+            <div key={block.id} className="my-6 overflow-hidden rounded-2xl border border-[#e5e7eb] dark:border-[#374151] bg-[#0a0a0a] shadow-lg">
+              <div className="aspect-video w-full">
+                {isYoutube ? (
+                  <iframe
+                    src={
+                      block.url
+                        .replace("watch?v=", "embed/")
+                        .replace("youtu.be/", "youtube.com/embed/")
+                    }
+                    title={block.title || "Video"}
+                    className="h-full w-full"
+                    allowFullScreen
+                  />
+                ) : (
+                  <a href={block.url} target="_blank" rel="noopener noreferrer" className="flex h-full items-center justify-center gap-3 bg-[#111] text-white hover:bg-[#1a1a1a]">
+                    <span className="rounded-full bg-white/10 p-4">
+                      <svg className="h-10 w-10" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </span>
+                    <span className="font-medium">Watch video</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          );
+        }
+        if (block.type === "link" && block.url) {
+          return (
+            <p key={block.id}>
+              <a
+                href={block.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--unipod-blue)] underline hover:opacity-90"
+              >
+                {block.text || block.url}
+              </a>
+            </p>
+          );
+        }
+        if (block.type === "quiz" || block.type === "assignment") {
+          const b = block as { title: string; content: string; htmlContent?: string };
+          return (
+            <div key={block.id} className="rounded-xl border border-[#e5e7eb] dark:border-[#374151] bg-[#f9fafb] dark:bg-[#111827] p-4">
+              <p className="font-medium text-[#171717] dark:text-[#f9fafb]">{b.title}</p>
+              {b.htmlContent?.trim() ? (
+                <div className="mt-2 text-sm text-[#374151] dark:text-[#d1d5db] prose prose-slate dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: b.htmlContent }} />
+              ) : (
+                <p className="mt-2 text-sm text-[#374151] dark:text-[#d1d5db]">{b.content}</p>
+              )}
+            </div>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
 function splitContentIntoPages(content: string | null): string[] {
   if (!content || !content.trim()) return [];
   const sections = content
@@ -27,7 +165,7 @@ function isImageUrl(line: string): boolean {
   return (t.startsWith("http://") || t.startsWith("https://")) && IMAGE_EXT.test(t);
 }
 
-function ContentBlock({ text }: { text: string }) {
+function LegacyContentBlock({ text }: { text: string }) {
   const lines = text.split("\n");
   const nodes: React.ReactNode[] = [];
   let paragraph: string[] = [];
@@ -35,7 +173,7 @@ function ContentBlock({ text }: { text: string }) {
   function flushParagraph(key: number) {
     if (paragraph.length > 0) {
       nodes.push(
-        <p key={key} className="text-[17px] leading-[1.75] text-[#374151]">
+        <p key={key} className="text-[17px] leading-[1.75] text-[#374151] dark:text-[#d1d5db]">
           {paragraph.join(" ")}
         </p>
       );
@@ -48,7 +186,7 @@ function ContentBlock({ text }: { text: string }) {
     if (isImageUrl(trimmed)) {
       flushParagraph(i * 2);
       nodes.push(
-        <figure key={i * 2 + 1} className="my-6 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-[#fafafa] shadow-sm">
+        <figure key={i * 2 + 1} className="my-6 overflow-hidden rounded-2xl border border-[#e5e7eb] dark:border-[#374151] bg-[#fafafa] dark:bg-[#111827] shadow-sm">
           <img
             src={trimmed}
             alt=""
@@ -89,14 +227,17 @@ export function LessonViewContent({
   const [marking, setMarking] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const pages = useMemo(() => splitContentIntoPages(lesson.content), [lesson.content]);
+  const contentBlocks = useMemo(() => parseContentBlocks(lesson.content), [lesson.content]);
+  const isBlockContent = contentBlocks !== null && contentBlocks.length > 0;
+  const pages = useMemo(() => (isBlockContent ? [] : splitContentIntoPages(lesson.content)), [lesson.content, isBlockContent]);
   const hasVideo = !!lesson.videoUrl;
   const hasResource = !!lesson.resourceUrl;
-  const totalPages = pages.length + (hasVideo ? 1 : 0) + (hasResource ? 1 : 0);
+  const contentPageCount = isBlockContent ? 1 : pages.length;
+  const totalPages = contentPageCount + (hasVideo ? 1 : 0) + (hasResource ? 1 : 0);
   const actualLastPageIndex = totalPages > 0 ? totalPages - 1 : 0;
-  const isContentPage = currentPage < pages.length;
-  const isVideoPage = hasVideo && currentPage === pages.length;
-  const isResourcePage = hasResource && currentPage === pages.length + (hasVideo ? 1 : 0);
+  const isContentPage = currentPage < contentPageCount;
+  const isVideoPage = hasVideo && currentPage === contentPageCount;
+  const isResourcePage = hasResource && currentPage === contentPageCount + (hasVideo ? 1 : 0);
   const showMarkComplete = totalPages === 0 || currentPage >= actualLastPageIndex;
 
   async function handleMarkComplete() {
@@ -166,11 +307,14 @@ export function LessonViewContent({
         </div>
       )}
 
-      {/* Content area - one "page" at a time, no long scroll */}
+      {/* Content area - one "page" at a time, or full block content */}
       <div className="mt-6 flex-1">
-        {isContentPage && pages[currentPage] && (
+        {isContentPage && isBlockContent && contentBlocks && (
+          <RenderedBlocks blocks={contentBlocks} />
+        )}
+        {isContentPage && !isBlockContent && pages[currentPage] && (
           <div className="max-w-[65ch]" style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}>
-            <ContentBlock text={pages[currentPage]} />
+            <LegacyContentBlock text={pages[currentPage]} />
           </div>
         )}
 
@@ -251,8 +395,8 @@ export function LessonViewContent({
           </div>
         )}
 
-        {pages.length === 0 && !hasVideo && !hasResource && (
-          <p className="max-w-[65ch] text-[17px] leading-[1.75] text-[#6b7280]">
+        {contentPageCount === 0 && !hasVideo && !hasResource && (
+          <p className="max-w-[65ch] text-[17px] leading-[1.75] text-[#6b7280] dark:text-[#9ca3af]">
             No content in this chapter yet.
           </p>
         )}
