@@ -1306,7 +1306,7 @@ export function CreateCourseWizard({
               onChange={(e) => setName(e.target.value)}
               required
               className="w-full rounded-lg border border-[#e5e7eb] dark:border-[#374151] bg-white dark:bg-[#111827] px-3 py-2 text-[#171717] dark:text-[#f9fafb]"
-              placeholder="e.g. Introduction to PDP"
+              placeholder="e.g. Introduction to PROGRAMS"
               dir="ltr"
               style={{ direction: "ltr", textAlign: "left" }}
             />

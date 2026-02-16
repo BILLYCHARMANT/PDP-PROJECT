@@ -47,7 +47,7 @@ export function DashboardNav({
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <div className="flex items-center gap-8">
           <Link href={base} className="font-semibold text-slate-800">
-            UNIPOD PDP
+            UNIPOD PROGRAMS
           </Link>
           <nav className="flex gap-1">
             {links.map(({ href, label }) => (

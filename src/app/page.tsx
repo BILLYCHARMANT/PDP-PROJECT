@@ -13,7 +13,7 @@ export default async function HomePage() {
       <div className="max-w-md w-full text-center space-y-6">
         <h1 className="text-3xl font-bold">
           <span style={{ color: "var(--unipod-blue)" }}>UNIPOD</span>
-          <span className="text-[#171717]"> PDP</span>
+          <span className="text-[#171717]"> PROGRAMS</span>
         </h1>
         <p className="text-[#374151]">
           Prototyping Development Program — learning, progress tracking, and

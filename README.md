@@ -1,6 +1,6 @@
-# UNIPOD PDP Dashboard
+# UNIPOD PROGRAMS Dashboard
 
-Web-based Prototyping Development Program (PDP) dashboard for UNIPOD: learning content, trainee assessment, progress tracking, and certificate generation.
+Web-based Prototyping Development Program (PROGRAMS) dashboard for UNIPOD: learning content, trainee assessment, progress tracking, and certificate generation.
 
 ## Tech stack
 
@@ -20,7 +20,7 @@ Web-based Prototyping Development Program (PDP) dashboard for UNIPOD: learning c
 
 Copy `.env.example` to `.env.local` and set:
 
-- `DATABASE_URL` – PostgreSQL connection string (e.g. `postgresql://user:password@localhost:5432/pdp`)
+- `DATABASE_URL` – PostgreSQL connection string (e.g. `postgresql://user:password@localhost:5432/PROGRAMS`)
 - `NEXTAUTH_URL` – App URL (e.g. `http://localhost:3000`)
 - `NEXTAUTH_SECRET` – Random string for JWT (e.g. `openssl rand -base64 32`)
 - `UPLOAD_DIR` – (optional) Directory for uploads and certificates, default `./uploads`
@@ -58,7 +58,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Certificate verification
 
-Public page: `/verify?cert=UNIPOD-PDP-XXXXXXXX`. Certificate PDF includes a QR code linking to this URL.
+Public page: `/verify?cert=UNIPOD-PROGRAMS-XXXXXXXX`. Certificate PDF includes a QR code linking to this URL.
 
 ## API overview
 

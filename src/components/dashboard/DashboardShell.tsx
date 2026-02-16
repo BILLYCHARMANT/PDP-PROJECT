@@ -173,7 +173,7 @@ export function DashboardShell({
           </button>
           <Link href={base} className="flex items-center gap-2 shrink-0">
             <span className="text-xl font-bold text-[var(--unipod-blue)]">UNIPOD</span>
-            <span className="text-xl font-bold text-[#171717] dark:text-[#f9fafb]">PDP</span>
+            <span className="text-xl font-bold text-[#171717] dark:text-[#f9fafb]">PROGRAMS</span>
           </Link>
           <div className="hidden sm:block max-w-xs w-full ml-2">
             <label className="sr-only" htmlFor="navbar-search">Search</label>

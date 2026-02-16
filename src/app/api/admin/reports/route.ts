@@ -31,7 +31,7 @@ export async function GET(req: Request) {
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename="pdp-report-${new Date().toISOString().slice(0, 10)}.csv"`,
+          "Content-Disposition": `attachment; filename="PROGRAMS-report-${new Date().toISOString().slice(0, 10)}.csv"`,
         },
       });
     }

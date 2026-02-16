@@ -7,7 +7,7 @@ import fs from "fs";
 import { prisma } from "./prisma";
 import { getTraineeProgramProgress } from "./progress-service";
 
-const CERT_PREFIX = "UNIPOD-PDP";
+const CERT_PREFIX = "UNIPOD-PROGRAMS";
 
 export async function getOrCreateCertificate(
   traineeId: string,

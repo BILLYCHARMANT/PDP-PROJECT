@@ -41,10 +41,10 @@ export default function LoginPage() {
       <div className="w-full max-w-sm rounded-xl border border-[#e5e7eb] bg-white p-8 shadow-sm">
         <div className="flex justify-center mb-6">
           <span className="text-2xl font-bold" style={{ color: "var(--unipod-blue)" }}>UNIPOD</span>
-          <span className="text-2xl font-bold text-[#171717]"> PDP</span>
+          <span className="text-2xl font-bold text-[#171717]"> PROGRAMS</span>
         </div>
         <h1 className="text-xl font-semibold text-[#171717] text-center mb-6">
-          Sign in to PDP Dashboard
+          Sign in to PROGRAMS Dashboard
         </h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

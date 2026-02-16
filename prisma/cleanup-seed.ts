@@ -37,7 +37,7 @@ async function cleanup() {
   }
 
   // Delete seed programs and all related data
-  const seedProgramNames = ["Introduction to PDP", "Advanced PDP"];
+  const seedProgramNames = ["Introduction to PROGRAMS", "Advanced PROGRAMS"];
   for (const programName of seedProgramNames) {
     const program = await prisma.program.findFirst({ where: { name: programName } });
     if (program) {

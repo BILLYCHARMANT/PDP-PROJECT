@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "UNIPOD PDP Dashboard",
+  title: "UNIPOD PROGRAMS Dashboard",
   description: "Prototyping Development Program - Learning, Progress & Certification",
 };
 

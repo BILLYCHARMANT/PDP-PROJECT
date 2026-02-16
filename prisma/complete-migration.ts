@@ -68,7 +68,7 @@ async function main() {
       course = await prisma.course.create({
         data: {
           programId: program.id,
-          name: `${program.name} Course`, // e.g., "PDP Course"
+          name: `${program.name} Course`, // e.g., "PROGRAMS Course"
           description: program.description || `Main course for ${program.name} program`,
           imageUrl: program.imageUrl,
           duration: program.duration,

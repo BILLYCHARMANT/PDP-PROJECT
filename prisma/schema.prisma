@@ -1,4 +1,4 @@
-// UNIPOD PDP Dashboard - Database Schema
+// UNIPOD PROGRAMS Dashboard - Database Schema
 // PostgreSQL with Prisma ORM
 // Structure: Program → Course → Module → Chapter (Lesson)
 //   Program has many Courses; Course has many Modules; Module has many Lessons (chapters) and Assignments

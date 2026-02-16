@@ -15,6 +15,6 @@ export default defineConfig({
   },
   datasource: {
     // Set DATABASE_URL in .env.local (e.g. from .env.example) for your hosted DB
-    url: process.env.DATABASE_URL || "postgresql://localhost:5432/pdp?schema=public",
+    url: process.env.DATABASE_URL || "postgresql://localhost:5432/PROGRAMS?schema=public",
   },
 });

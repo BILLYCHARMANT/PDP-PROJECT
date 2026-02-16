@@ -1,4 +1,4 @@
-// GET /api/verify?cert=UNIPOD-PDP-XXXX - Public certificate verification
+// GET /api/verify?cert=UNIPOD-PROGRAMS-XXXX - Public certificate verification
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 

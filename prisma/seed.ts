@@ -56,13 +56,13 @@ async function main() {
   });
 
   let program = await prisma.program.findFirst({
-    where: { name: "Introduction to PDP" },
+    where: { name: "Introduction to PROGRAMS" },
   });
   if (!program) {
     program = await prisma.program.create({
       data: {
-        name: "Introduction to PDP",
-        description: "Sample UNIPOD PDP program with one module.",
+        name: "Introduction to PROGRAMS",
+        description: "Sample UNIPOD PROGRAMS program with one module.",
       },
     });
   }
@@ -150,13 +150,13 @@ async function main() {
 
   // Second program (course) so trainee sees two courses when enrolled in its cohort
   let program2 = await prisma.program.findFirst({
-    where: { name: "Advanced PDP" },
+    where: { name: "Advanced PROGRAMS" },
   });
   if (!program2) {
     program2 = await prisma.program.create({
       data: {
-        name: "Advanced PDP",
-        description: "Second UNIPOD PDP program. Visible when you are enrolled in a cohort for this course.",
+        name: "Advanced PROGRAMS",
+        description: "Second UNIPOD PROGRAMS program. Visible when you are enrolled in a cohort for this course.",
       },
     });
     const course2 = await prisma.course.create({
